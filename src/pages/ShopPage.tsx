@@ -1,23 +1,22 @@
 import React, { useState, useMemo } from 'react';
 import type { Product, Category } from '../types/catalog.ts';
-import { CATEGORIES, MERCHANTS } from '../types/catalog.ts';
+import { CATEGORIES, RETAILERS } from '../types/catalog.ts';
 import { filterAndSortProducts } from '../utils/catalogLogic.ts';
 import { ProductCard } from '../components/ProductCard.tsx';
 import { 
   Search, 
-  SlidersHorizontal, 
   X, 
   ArrowUpDown, 
   Sparkles, 
-  RefreshCw, 
-  Filter,
-  Check
+  RefreshCw,
+  ShoppingBag
 } from 'lucide-react';
 
 interface ShopPageProps {
   products: Product[];
   initialCategory?: string;
   initialQuery?: string;
+  isLoading?: boolean;
   onQuickView: (product: Product) => void;
   onOpenReel: (reelUrl: string) => void;
 }
@@ -26,22 +25,22 @@ export const ShopPage: React.FC<ShopPageProps> = ({
   products,
   initialCategory = 'All',
   initialQuery = '',
+  isLoading = false,
   onQuickView,
   onOpenReel
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<Category>(
-    (initialCategory as Category) || 'All'
+  const [selectedCategory, setSelectedCategory] = useState<Category | string>(
+    initialCategory || 'All'
   );
   const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [selectedMerchant, setSelectedMerchant] = useState('All');
+  const [selectedRetailer, setSelectedRetailer] = useState('All');
   const [sortBy, setSortBy] = useState<'trending' | 'price-asc' | 'price-desc' | 'discount' | 'newest'>('trending');
   const [maxPrice, setMaxPrice] = useState<number>(0);
-  const [showFiltersMobile, setShowFiltersMobile] = useState(false);
 
-  // Sync initial props if changed
+  // Sync initial props
   React.useEffect(() => {
     if (initialCategory) {
-      setSelectedCategory(initialCategory as Category);
+      setSelectedCategory(initialCategory);
     }
   }, [initialCategory]);
 
@@ -56,23 +55,23 @@ export const ShopPage: React.FC<ShopPageProps> = ({
     return filterAndSortProducts(products, {
       category: selectedCategory,
       searchQuery,
-      merchant: selectedMerchant,
+      retailer: selectedRetailer,
       maxPrice: maxPrice > 0 ? maxPrice : undefined,
       sortBy,
       activeOnly: true
     });
-  }, [products, selectedCategory, searchQuery, selectedMerchant, maxPrice, sortBy]);
+  }, [products, selectedCategory, searchQuery, selectedRetailer, maxPrice, sortBy]);
 
   const activeFiltersCount = 
     (selectedCategory !== 'All' ? 1 : 0) +
-    (selectedMerchant !== 'All' ? 1 : 0) +
+    (selectedRetailer !== 'All' ? 1 : 0) +
     (maxPrice > 0 ? 1 : 0) +
     (searchQuery.trim().length > 0 ? 1 : 0);
 
   const clearAllFilters = () => {
     setSelectedCategory('All');
     setSearchQuery('');
-    setSelectedMerchant('All');
+    setSelectedRetailer('All');
     setMaxPrice(0);
     setSortBy('trending');
   };
@@ -94,7 +93,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
         <div className="relative w-full sm:w-72">
           <input
             type="text"
-            placeholder="Search catalog..."
+            placeholder="Search catalog by name, category..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-white border border-[#E9B8BD] focus:border-[#743D4A] rounded-xl pl-9 pr-8 py-2 text-xs text-[#2D1E1F] outline-none shadow-xs"
@@ -134,28 +133,28 @@ export const ShopPage: React.FC<ShopPageProps> = ({
       {/* Filter and Sort Toolbar */}
       <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-[#F0E4DC] shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Merchant Dropdown */}
+          {/* Retailer Dropdown */}
           <div className="flex items-center gap-1.5">
-            <span className="text-stone-500 font-medium">Merchant:</span>
+            <span className="text-stone-500 font-medium">Retailer:</span>
             <select
-              value={selectedMerchant}
-              onChange={(e) => setSelectedMerchant(e.target.value)}
+              value={selectedRetailer}
+              onChange={(e) => setSelectedRetailer(e.target.value)}
               className="bg-[#FFF9F4] border border-[#E9B8BD] rounded-lg px-2.5 py-1.5 text-xs text-[#2D1E1F] font-semibold outline-none cursor-pointer"
             >
-              {MERCHANTS.map((m) => (
+              {RETAILERS.map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>
           </div>
 
-          {/* Quick Price Buttons */}
+          {/* Quick Price Buttons: Under 299, Under 399, Under 499 */}
           <div className="hidden sm:flex items-center gap-1.5 ml-2">
             <span className="text-stone-500 font-medium">Budget:</span>
             {[
               { label: 'All', val: 0 },
               { label: '≤ ₹299', val: 299 },
-              { label: '≤ ₹499', val: 499 },
-              { label: '≤ ₹999', val: 999 }
+              { label: '≤ ₹399', val: 399 },
+              { label: '≤ ₹499', val: 499 }
             ].map((b) => (
               <button
                 key={b.val}
@@ -205,10 +204,10 @@ export const ShopPage: React.FC<ShopPageProps> = ({
               <button onClick={() => setSelectedCategory('All')}><X className="w-3 h-3" /></button>
             </span>
           )}
-          {selectedMerchant !== 'All' && (
+          {selectedRetailer !== 'All' && (
             <span className="bg-[#FFF0F2] text-[#743D4A] border border-[#E9B8BD] px-2.5 py-1 rounded-full flex items-center gap-1 font-semibold">
-              Merchant: {selectedMerchant}
-              <button onClick={() => setSelectedMerchant('All')}><X className="w-3 h-3" /></button>
+              Retailer: {selectedRetailer}
+              <button onClick={() => setSelectedRetailer('All')}><X className="w-3 h-3" /></button>
             </span>
           )}
           {maxPrice > 0 && (
@@ -232,12 +231,25 @@ export const ShopPage: React.FC<ShopPageProps> = ({
         </div>
       )}
 
-      {/* Products Grid */}
-      {filteredProducts.length > 0 ? (
+      {/* Loading Skeletons */}
+      {isLoading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 animate-pulse">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl p-3 border border-[#F0E4DC] space-y-3">
+              <div className="aspect-3/4 bg-[#F5EBE6] rounded-xl" />
+              <div className="h-3 bg-[#F5EBE6] rounded w-1/3" />
+              <div className="h-4 bg-[#F5EBE6] rounded w-5/6" />
+              <div className="h-4 bg-[#F5EBE6] rounded w-1/2" />
+              <div className="h-8 bg-[#F5EBE6] rounded-xl" />
+            </div>
+          ))}
+        </div>
+      ) : filteredProducts.length > 0 ? (
+        /* Products Grid */
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
           {filteredProducts.map((product) => (
             <ProductCard
-              key={product.product_id}
+              key={product.productId || product.product_id}
               product={product}
               onQuickView={onQuickView}
               onOpenReel={onOpenReel}
@@ -251,10 +263,10 @@ export const ShopPage: React.FC<ShopPageProps> = ({
             <Search className="w-7 h-7" />
           </div>
           <h3 className="font-serif text-xl font-bold text-[#743D4A]">
-            No Matching Finds
+            No Matching Finds Found
           </h3>
           <p className="text-xs text-stone-600 leading-relaxed">
-            We couldn't find any items matching your active filters or search query "{searchQuery}". Try clearing filters or searching for another keyword like "kurti" or "co-ord".
+            We couldn't find any items matching your active filters or query {searchQuery ? `"${searchQuery}"` : ''}. Try broadening your search or choosing a different category.
           </p>
           <button
             onClick={clearAllFilters}

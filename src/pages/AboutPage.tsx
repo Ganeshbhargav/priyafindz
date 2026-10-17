@@ -15,8 +15,8 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
           Behind PriyaFindz
         </span>
         <h1 className="font-serif text-3xl sm:text-5xl font-bold text-[#743D4A]">
-          Style You Love.<br />
-          <span className="italic font-normal text-[#2D1E1F]">Prices You'll Love More.</span>
+          Discover Your Style.<br />
+          <span className="italic font-normal text-[#2D1E1F]">Find Your Favorites.</span>
         </h1>
         <p className="text-sm text-stone-600 leading-relaxed pt-2">
           PriyaFindz was born out of a simple, rebellious fashion belief: Indian women shouldn't have to spend a month's savings to look breathtaking.

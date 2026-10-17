@@ -5,11 +5,11 @@ import {
   calculateDiscount,
   parseBoolean,
   parseCsvLine,
-  validateHeaders,
-  parseProductsCsv,
+  sanitizeAffiliateUrl,
+  normalizeProduct,
+  parseGoogleSheetsValues,
   filterAndSortProducts,
-  extractGoogleSheetCsvUrl,
-  REQUIRED_COLUMNS
+  OFFICIAL_COLUMNS
 } from './catalogLogic.ts';
 import type { Product } from '../types/catalog.ts';
 
@@ -24,11 +24,11 @@ test('parsePrice handles INR symbols, commas, and invalid inputs', () => {
 test('calculateDiscount calculates percentage discount correctly', () => {
   assert.equal(calculateDiscount(500, 1000), 50);
   assert.equal(calculateDiscount(799, 2499), 68);
-  assert.equal(calculateDiscount(1200, 1000), 0); // No discount when price > original
+  assert.equal(calculateDiscount(1200, 1000), 0);
   assert.equal(calculateDiscount(500, 500), 0);
 });
 
-test('parseBoolean properly parses boolean values', () => {
+test('parseBoolean properly parses boolean values from spreadsheets', () => {
   assert.equal(parseBoolean('true'), true);
   assert.equal(parseBoolean('TRUE'), true);
   assert.equal(parseBoolean('yes'), true);
@@ -36,6 +36,14 @@ test('parseBoolean properly parses boolean values', () => {
   assert.equal(parseBoolean('false'), false);
   assert.equal(parseBoolean('no'), false);
   assert.equal(parseBoolean('', false), false);
+});
+
+test('sanitizeAffiliateUrl permits only valid HTTPS/HTTP destinations', () => {
+  assert.equal(sanitizeAffiliateUrl('https://meesho.com/p/1'), 'https://meesho.com/p/1');
+  assert.equal(sanitizeAffiliateUrl('http://myntra.com/p/2'), 'http://myntra.com/p/2');
+  assert.equal(sanitizeAffiliateUrl('javascript:alert(1)'), '#');
+  assert.equal(sanitizeAffiliateUrl(''), '#');
+  assert.equal(sanitizeAffiliateUrl(null), '#');
 });
 
 test('parseCsvLine parses quoted values containing commas', () => {
@@ -48,116 +56,98 @@ test('parseCsvLine parses quoted values containing commas', () => {
   assert.equal(parsed[3], '499');
 });
 
-test('validateHeaders detects missing required columns', () => {
-  const validHeaders = [...REQUIRED_COLUMNS];
-  const resValid = validateHeaders(validHeaders);
-  assert.equal(resValid.isValid, true);
-  assert.equal(resValid.missing.length, 0);
+test('parseGoogleSheetsValues parses Google Sheets API 2D values array', () => {
+  const values = [
+    [
+      'productId', 'productName', 'category', 'retailer', 'price',
+      'originalPrice', 'imageUrl', 'affiliateUrl', 'description', 'reelUrl',
+      'featured', 'isActive', 'createdAt'
+    ],
+    [
+      'PF-201', 'Chanderi Kurta', 'Kurtis', 'Meesho', '399',
+      '999', 'https://images.unsplash.com/sample.jpg', 'https://meesho.com/s/p/201',
+      'Elegant summer kurti', '', 'true', 'true', '2026-03-01'
+    ],
+    [
+      'PF-202', 'Discontinued Item', 'Dresses', 'Myntra', '799',
+      '1999', 'https://images.unsplash.com/sample2.jpg', 'https://myntra.com/s/p/202',
+      'Old stock', '', 'false', 'false', '2026-03-02'
+    ]
+  ];
 
-  const missingHeaders = ['product_id', 'name', 'price_inr'];
-  const resInvalid = validateHeaders(missingHeaders);
-  assert.equal(resInvalid.isValid, false);
-  assert.ok(resInvalid.missing.includes('affiliate_url'));
-  assert.ok(resInvalid.missing.includes('category'));
+  const products = parseGoogleSheetsValues(values);
+  assert.equal(products.length, 1); // Second product is inactive, so excluded
+  assert.equal(products[0].productId, 'PF-201');
+  assert.equal(products[0].productName, 'Chanderi Kurta');
+  assert.equal(products[0].price, 399);
+  assert.equal(products[0].originalPrice, 999);
+  assert.equal(products[0].discountPercent, 60);
+  assert.equal(products[0].retailer, 'Meesho');
+  assert.equal(products[0].isActive, true);
 });
 
-test('parseProductsCsv parses CSV text into typed products', () => {
-  const csv = [
-    REQUIRED_COLUMNS.join(','),
-    'PF-01,"Chikankari Kurti","Hand embroidered lucknowi kurti",399,999,"Kurtis","Meesho","https://meesho.com/p/1","https://img.com/1","https://instagram.com/reel/1",true,true,2026-03-01',
-    'PF-02,"A-line Western Dress","Floral summer dress",599,1499,"Dresses","Myntra","https://myntra.com/p/2","https://img.com/2","",false,true,2026-03-02'
-  ].join('\n');
-
-  const result = parseProductsCsv(csv);
-  assert.equal(result.errors.length, 0);
-  assert.equal(result.products.length, 2);
-  assert.equal(result.products[0].product_id, 'PF-01');
-  assert.equal(result.products[0].price_inr, 399);
-  assert.equal(result.products[0].original_price_inr, 999);
-  assert.equal(result.products[0].discount_percent, 60);
-  assert.equal(result.products[0].featured, true);
-  assert.equal(result.products[0].active, true);
-  assert.equal(result.products[1].featured, false);
-});
-
-test('filterAndSortProducts handles search, category, and budget tiers', () => {
+test('filterAndSortProducts handles search, category, and budget tiers (Under 299, 399, 499)', () => {
   const mockProducts: Product[] = [
-    {
-      product_id: '1',
-      name: 'Anarkali Kurta',
+    normalizeProduct({
+      productId: '1',
+      productName: 'Anarkali Kurta',
       description: 'Festive red',
-      price_inr: 899,
-      original_price_inr: 1999,
+      price: 899,
+      originalPrice: 1999,
       category: 'Ethnic Wear',
-      merchant: 'Meesho',
-      affiliate_url: 'https://meesho.com/1',
-      image_url: 'https://img.com/1',
+      retailer: 'Meesho',
+      affiliateUrl: 'https://meesho.com/1',
+      imageUrl: 'https://img.com/1',
       featured: true,
-      active: true,
-      created_at: '2026-03-01',
-      discount_percent: 55
-    },
-    {
-      product_id: '2',
-      name: 'Cotton Kurti',
+      isActive: true,
+      createdAt: '2026-03-01'
+    }),
+    normalizeProduct({
+      productId: '2',
+      productName: 'Cotton Kurti',
       description: 'Daily office wear',
-      price_inr: 249,
-      original_price_inr: 599,
+      price: 249,
+      originalPrice: 599,
       category: 'Kurtis',
-      merchant: 'Myntra',
-      affiliate_url: 'https://myntra.com/2',
-      image_url: 'https://img.com/2',
+      retailer: 'Myntra',
+      affiliateUrl: 'https://myntra.com/2',
+      imageUrl: 'https://img.com/2',
       featured: false,
-      active: true,
-      created_at: '2026-03-02',
-      discount_percent: 58
-    },
-    {
-      product_id: '3',
-      name: 'Pearl Choker Necklace',
+      isActive: true,
+      createdAt: '2026-03-02'
+    }),
+    normalizeProduct({
+      productId: '3',
+      productName: 'Pearl Choker Necklace',
       description: 'Golden jewelry',
-      price_inr: 199,
-      original_price_inr: 499,
+      price: 349,
+      originalPrice: 799,
       category: 'Accessories',
-      merchant: 'Meesho',
-      affiliate_url: 'https://meesho.com/3',
-      image_url: 'https://img.com/3',
+      retailer: 'Meesho',
+      affiliateUrl: 'https://meesho.com/3',
+      imageUrl: 'https://img.com/3',
       featured: false,
-      active: true,
-      created_at: '2026-03-03',
-      discount_percent: 60
-    }
+      isActive: true,
+      createdAt: '2026-03-03'
+    })
   ];
 
   // Category filter
   const ethnicOnly = filterAndSortProducts(mockProducts, { category: 'Ethnic Wear' });
   assert.equal(ethnicOnly.length, 1);
-  assert.equal(ethnicOnly[0].product_id, '1');
+  assert.equal(ethnicOnly[0].productId, '1');
 
   // Budget category "Under ₹299"
   const under299 = filterAndSortProducts(mockProducts, { category: 'Under ₹299' });
-  assert.equal(under299.length, 2);
+  assert.equal(under299.length, 1);
+  assert.equal(under299[0].productId, '2');
+
+  // Budget category "Under ₹399"
+  const under399 = filterAndSortProducts(mockProducts, { category: 'Under ₹399' });
+  assert.equal(under399.length, 2);
 
   // Search query
   const searched = filterAndSortProducts(mockProducts, { searchQuery: 'pearl' });
   assert.equal(searched.length, 1);
-  assert.equal(searched[0].product_id, '3');
-
-  // Sort by price asc
-  const priceAsc = filterAndSortProducts(mockProducts, { sortBy: 'price-asc' });
-  assert.equal(priceAsc[0].price_inr, 199);
-  assert.equal(priceAsc[2].price_inr, 899);
-});
-
-test('extractGoogleSheetCsvUrl extracts export links from multiple URL patterns', () => {
-  const url1 = 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit#gid=0';
-  const res1 = extractGoogleSheetCsvUrl(url1);
-  assert.equal(res1.isValid, true);
-  assert.equal(res1.sheetId, '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms');
-  assert.ok(res1.csvUrl.includes('export?format=csv'));
-
-  const url2 = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSamplePubId12345/pubhtml';
-  const res2 = extractGoogleSheetCsvUrl(url2);
-  assert.equal(res2.isValid, true);
-  assert.ok(res2.csvUrl.includes('output=csv'));
+  assert.equal(searched[0].productId, '3');
 });

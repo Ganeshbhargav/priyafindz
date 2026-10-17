@@ -14,13 +14,13 @@ export const BudgetPage: React.FC<BudgetPageProps> = ({
   onQuickView,
   onOpenReel
 }) => {
-  const [selectedTier, setSelectedTier] = useState<299 | 499 | 999>(499);
+  const [selectedTier, setSelectedTier] = useState<299 | 399 | 499>(399);
 
   const tierProducts = products.filter((p) => {
-    if (!p.active) return false;
-    if (selectedTier === 299) return p.price_inr <= 299;
-    if (selectedTier === 499) return p.price_inr <= 499;
-    return p.price_inr <= 999;
+    if (!p.isActive) return false;
+    if (selectedTier === 299) return p.price <= 299;
+    if (selectedTier === 399) return p.price <= 399;
+    return p.price <= 499;
   });
 
   return (
@@ -35,15 +35,15 @@ export const BudgetPage: React.FC<BudgetPageProps> = ({
           Budget Wardrobe Edits
         </h1>
         <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-          Premium styling doesn't require a designer budget. Explore our hand-vetted collections separated by strict price ceilings with zero compromises on aesthetic quality.
+          Premium styling without a designer budget. Explore our hand-vetted collections separated by strict price ceilings with zero compromises on quality.
         </p>
 
-        {/* Tier Tabs */}
-        <div className="flex items-center justify-center gap-2 pt-2">
+        {/* Tier Tabs: Under 299, Under 399, Under 499 */}
+        <div className="flex items-center justify-center gap-2 pt-2 flex-wrap">
           {[
             { tier: 299 as const, label: 'Under ₹299 Steals', desc: 'Earrings, Chains & Daily Tops' },
-            { tier: 499 as const, label: 'Under ₹499 Wardrobe', desc: 'Kurtis, Bags & Blouses' },
-            { tier: 999 as const, label: 'Under ₹999 Festive', desc: 'Anarkalis, Co-ords & Heels' }
+            { tier: 399 as const, label: 'Under ₹399 Everyday', desc: 'Kurtis, Tops & Lounge Sets' },
+            { tier: 499 as const, label: 'Under ₹499 Staples', desc: 'Chikankari, Bags & Blouses' }
           ].map((t) => (
             <button
               key={t.tier}
@@ -67,7 +67,7 @@ export const BudgetPage: React.FC<BudgetPageProps> = ({
         </span>
         <div className="flex items-center gap-2 text-[#743D4A] font-semibold">
           <Percent className="w-3.5 h-3.5" />
-          <span>All verified with destination merchant links</span>
+          <span>Verified deals with direct retailer checkout</span>
         </div>
       </div>
 
@@ -75,7 +75,7 @@ export const BudgetPage: React.FC<BudgetPageProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
         {tierProducts.map((product) => (
           <ProductCard
-            key={product.product_id}
+            key={product.productId || product.product_id}
             product={product}
             onQuickView={onQuickView}
             onOpenReel={onOpenReel}

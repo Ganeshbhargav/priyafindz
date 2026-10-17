@@ -1,18 +1,29 @@
 export interface Product {
+  productId: string;
+  productName: string;
+  category: string;
+  retailer: string;
+  price: number;
+  originalPrice?: number;
+  imageUrl: string;
+  affiliateUrl: string;
+  description: string;
+  reelUrl?: string;
+  featured: boolean;
+  isActive: boolean;
+  createdAt: string;
+  discountPercent?: number;
+
+  // Backwards compatibility aliases
   product_id: string;
   name: string;
-  description: string;
+  merchant: string;
   price_inr: number;
   original_price_inr: number;
-  category: string;
-  merchant: string;
-  affiliate_url: string;
   image_url: string;
+  affiliate_url: string;
   reel_url?: string;
-  featured: boolean;
   active: boolean;
-  created_at: string;
-  // Computed / UI helpers
   discount_percent?: number;
   tags?: string[];
   in_stock?: boolean;
@@ -28,8 +39,8 @@ export type Category =
   | 'Handbags'
   | 'Accessories'
   | 'Under ₹299'
-  | 'Under ₹499'
-  | 'Under ₹999';
+  | 'Under ₹399'
+  | 'Under ₹499';
 
 export const CATEGORIES: Category[] = [
   'All',
@@ -41,11 +52,11 @@ export const CATEGORIES: Category[] = [
   'Handbags',
   'Accessories',
   'Under ₹299',
-  'Under ₹499',
-  'Under ₹999',
+  'Under ₹399',
+  'Under ₹499'
 ];
 
-export const MERCHANTS = [
+export const RETAILERS = [
   'All',
   'Meesho',
   'Myntra',
@@ -53,6 +64,8 @@ export const MERCHANTS = [
   'Amazon India',
   'Nykaa Fashion'
 ] as const;
+
+export const MERCHANTS = RETAILERS;
 
 export interface ReelFind {
   id: string;
@@ -66,13 +79,9 @@ export interface ReelFind {
   tagged_product_ids: string[];
 }
 
-export interface CatalogMetadata {
-  source: 'demo' | 'google_sheet';
-  sheetId?: string;
-  sheetUrl?: string;
-  lastSyncedAt: string;
-  itemCount: number;
-  status: 'demo' | 'connected' | 'error' | 'syncing';
-  errorMessage?: string;
-  validatedColumns?: string[];
+export interface CatalogResponse {
+  products: Product[];
+  total: number;
+  isDemo: boolean;
+  cachedAt?: string;
 }

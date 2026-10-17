@@ -1,6 +1,5 @@
 import React from 'react';
-import type { Product, Category, ReelFind, CatalogMetadata } from '../types/catalog.ts';
-import { CATEGORIES } from '../types/catalog.ts';
+import type { Product, ReelFind } from '../types/catalog.ts';
 import { ProductCard } from '../components/ProductCard.tsx';
 import { ReelCard } from '../components/ReelCard.tsx';
 import { ImageWithFallback } from '../components/ImageWithFallback.tsx';
@@ -10,48 +9,44 @@ import {
   ShoppingBag, 
   Film, 
   Tag, 
-  TrendingUp, 
   Flame, 
   ShieldCheck, 
-  Zap, 
-  FileSpreadsheet, 
   Percent,
-  CheckCircle2
+  CheckCircle2,
+  Heart
 } from 'lucide-react';
 
 interface HomePageProps {
   products: Product[];
   reels: ReelFind[];
-  metadata: CatalogMetadata;
+  isDemo?: boolean;
   onNavigate: (page: string, params?: { category?: string; query?: string }) => void;
   onQuickView: (product: Product) => void;
   onOpenReel: (reelUrl: string) => void;
-  onOpenSheetModal: () => void;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
   products,
   reels,
-  metadata,
+  isDemo = false,
   onNavigate,
   onQuickView,
-  onOpenReel,
-  onOpenSheetModal
+  onOpenReel
 }) => {
   // Derive featured, trending, latest, and budget subsets
-  const featuredProducts = products.filter(p => p.featured && p.active).slice(0, 8);
+  const featuredProducts = products.filter(p => p.featured && p.isActive).slice(0, 8);
   const trendingProducts = [...products]
-    .filter(p => p.active)
-    .sort((a, b) => (b.discount_percent || 0) - (a.discount_percent || 0))
+    .filter(p => p.isActive)
+    .sort((a, b) => (b.discountPercent || b.discount_percent || 0) - (a.discountPercent || a.discount_percent || 0))
     .slice(0, 6);
   const latestArrivals = [...products]
-    .filter(p => p.active)
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .filter(p => p.isActive)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 8);
 
-  const under299 = products.filter(p => p.active && p.price_inr <= 299).slice(0, 4);
-  const under499 = products.filter(p => p.active && p.price_inr <= 499 && p.price_inr > 299).slice(0, 4);
-  const under999 = products.filter(p => p.active && p.price_inr <= 999 && p.price_inr > 499).slice(0, 4);
+  const under299 = products.filter(p => p.isActive && p.price <= 299).slice(0, 4);
+  const under399 = products.filter(p => p.isActive && p.price <= 399 && p.price > 299).slice(0, 4);
+  const under499 = products.filter(p => p.isActive && p.price <= 499 && p.price > 399).slice(0, 4);
 
   // Category quick icons & images
   const categoryHighlights = [
@@ -62,36 +57,13 @@ export const HomePage: React.FC<HomePageProps> = ({
     { name: 'Dresses', img: 'https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=300&q=80' },
     { name: 'Handbags', img: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=300&q=80' },
     { name: 'Accessories', img: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=300&q=80' },
-    { name: 'Under ₹299', img: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=300&q=80', isBadge: true }
+    { name: 'Under ₹299', img: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=300&q=80' }
   ];
 
   return (
     <div className="space-y-12 sm:space-y-16 pb-12">
-      {/* Google Sheet Live Connection Notice Banner */}
-      <div className="bg-[#FCEEF0] border-b border-[#E9B8BD]/70 py-2.5 px-4 text-xs text-[#743D4A]">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <FileSpreadsheet className="w-4 h-4 text-[#743D4A] shrink-0" />
-            <span>
-              {metadata.source === 'google_sheet' ? (
-                <strong className="text-emerald-800">Live Google Sheet Connected:</strong>
-              ) : (
-                <strong>Google Sheets Inventory Mode:</strong>
-              )}{' '}
-              {metadata.itemCount} items loaded. {metadata.source === 'demo' ? 'Currently displaying verified demo catalog.' : 'Spreadsheet is your single source of truth.'}
-            </span>
-          </div>
-          <button
-            onClick={onOpenSheetModal}
-            className="text-[11px] font-bold underline hover:text-[#5E2F3B] cursor-pointer shrink-0"
-          >
-            {metadata.source === 'google_sheet' ? 'Manage Sheet Source' : 'Connect Your Google Sheet ↗'}
-          </button>
-        </div>
-      </div>
-
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6">
         <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#743D4A] via-[#854553] to-[#5C2B36] text-[#FFF9F4] shadow-xl">
           {/* Subtle Decorative Pattern */}
           <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#FFF9F4_1px,transparent_1px)] [background-size:16px_16px]" />
@@ -105,12 +77,12 @@ export const HomePage: React.FC<HomePageProps> = ({
               </div>
 
               <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold leading-tight tracking-tight">
-                Style You Love.<br />
-                <span className="text-[#E9B8BD] italic">Prices You'll Love More.</span>
+                Discover Your Style.<br />
+                <span className="text-[#E9B8BD] italic">Find Your Favorites.</span>
               </h1>
 
               <p className="text-sm sm:text-base text-[#FFF9F4]/85 max-w-xl font-normal leading-relaxed">
-                Discover viral ethnic wear, chic co-ord sets, breathable daily kurtis, and designer lookalikes handpicked from Meesho, Myntra & top merchants — all under real budget prices.
+                Explore handpicked ethnic wear, breathable daily kurtis, Parisian co-ord sets, and viral Instagram fashion finds from Meesho, Myntra & top retailers — with honest pricing and zero markups.
               </p>
 
               {/* CTAs */}
@@ -145,7 +117,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Tag className="w-4 h-4 text-[#E9B8BD] shrink-0" />
-                  <span>Under ₹999 Focus</span>
+                  <span>Under ₹499 Focus</span>
                 </div>
               </div>
             </div>
@@ -242,7 +214,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           {trendingProducts.map((product) => (
             <ProductCard
-              key={product.product_id}
+              key={product.productId || product.product_id}
               product={product}
               onQuickView={onQuickView}
               onOpenReel={onOpenReel}
@@ -251,7 +223,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </section>
 
-      {/* Budget Collections Spotlight */}
+      {/* Budget Collections Spotlight: Under ₹299, Under ₹399, Under ₹499 */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="text-center max-w-xl mx-auto mb-8">
           <span className="text-xs font-bold uppercase tracking-widest text-[#743D4A]">
@@ -273,7 +245,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           >
             <div>
               <span className="bg-[#743D4A] text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
-                Pocket Friendly
+                Pocket Steals
               </span>
               <h3 className="font-serif text-2xl font-bold text-[#743D4A] mt-3">
                 Steals Under ₹299
@@ -290,48 +262,48 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
           </div>
 
-          {/* Under ₹499 Card */}
+          {/* Under ₹399 Card */}
           <div 
-            onClick={() => onNavigate('shop', { category: 'Under ₹499' })}
+            onClick={() => onNavigate('shop', { category: 'Under ₹399' })}
             className="group relative rounded-3xl p-6 bg-gradient-to-br from-[#FAF3ED] to-[#F5EBE6] border border-[#EEDDD5] hover:shadow-lg transition-all cursor-pointer overflow-hidden flex flex-col justify-between"
           >
             <div>
               <span className="bg-[#743D4A] text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
-                Most Popular
+                Everyday Chic
               </span>
               <h3 className="font-serif text-2xl font-bold text-[#743D4A] mt-3">
-                Wardrobe Under ₹499
+                Trending Under ₹399
               </h3>
               <p className="text-xs text-stone-600 mt-1">
-                Lucknowi chikankari kurtis, structured croc bags & trendy blouses.
+                Tiered floral kurtis, waffle lounge co-ords, and satin party tops.
               </p>
             </div>
             <div className="mt-6 flex items-center justify-between text-xs font-bold text-[#743D4A]">
-              <span>Explore {under499.length}+ items</span>
+              <span>Explore {under399.length}+ items</span>
               <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-xs group-hover:translate-x-1 transition-transform">
                 <ArrowRight className="w-4 h-4" />
               </div>
             </div>
           </div>
 
-          {/* Under ₹999 Card */}
+          {/* Under ₹499 Card */}
           <div 
-            onClick={() => onNavigate('shop', { category: 'Under ₹999' })}
+            onClick={() => onNavigate('shop', { category: 'Under ₹499' })}
             className="group relative rounded-3xl p-6 bg-gradient-to-br from-[#F5EFF2] to-[#EAE0E5] border border-[#D5C2CC] hover:shadow-lg transition-all cursor-pointer overflow-hidden flex flex-col justify-between"
           >
             <div>
               <span className="bg-[#743D4A] text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
-                Festive & Party
+                Wardrobe Staples
               </span>
               <h3 className="font-serif text-2xl font-bold text-[#743D4A] mt-3">
-                Designer Looks Under ₹999
+                Must-Haves Under ₹499
               </h3>
               <p className="text-xs text-stone-600 mt-1">
-                Anarkali sets, linen co-ords, floral sundresses, and Kolhapuri heels.
+                Lucknowi chikankari kurtis, structured croc bags & printed sets.
               </p>
             </div>
             <div className="mt-6 flex items-center justify-between text-xs font-bold text-[#743D4A]">
-              <span>Explore {under999.length}+ items</span>
+              <span>Explore {under499.length}+ items</span>
               <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-xs group-hover:translate-x-1 transition-transform">
                 <ArrowRight className="w-4 h-4" />
               </div>
@@ -364,7 +336,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
           {featuredProducts.map((product) => (
             <ProductCard
-              key={product.product_id}
+              key={product.productId || product.product_id}
               product={product}
               onQuickView={onQuickView}
               onOpenReel={onOpenReel}
@@ -400,7 +372,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {reels.map((reel) => {
-              const tagged = products.filter(p => reel.tagged_product_ids.includes(p.product_id));
+              const tagged = products.filter(p => reel.tagged_product_ids.includes(p.productId || p.product_id));
               return (
                 <ReelCard
                   key={reel.id}
@@ -421,7 +393,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#743D4A]">
               Latest Added Finds
             </h2>
-            <p className="text-xs text-stone-500">Fresh drops synced directly from our product sheet</p>
+            <p className="text-xs text-stone-500">Fresh drops added regularly to our curated collection</p>
           </div>
           <button
             onClick={() => onNavigate('shop')}
@@ -435,39 +407,12 @@ export const HomePage: React.FC<HomePageProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
           {latestArrivals.map((product) => (
             <ProductCard
-              key={product.product_id}
+              key={product.productId || product.product_id}
               product={product}
               onQuickView={onQuickView}
               onOpenReel={onOpenReel}
             />
           ))}
-        </div>
-      </section>
-
-      {/* Google Sheet Direct Callout Box */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="bg-[#FFFDFB] rounded-3xl p-6 sm:p-8 border border-[#E9B8BD] shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-              <span className="text-xs font-bold uppercase tracking-wider text-[#743D4A]">
-                Google Sheets Integration
-              </span>
-            </div>
-            <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#2D1E1F]">
-              Have a Google Sheet Catalog? Connect it in 1 Click
-            </h3>
-            <p className="text-xs sm:text-sm text-stone-600 max-w-xl">
-              PriyaFindz connects directly to your Google Spreadsheet. Add products, update affiliate links, or tweak prices without touching any code.
-            </p>
-          </div>
-          <button
-            onClick={onOpenSheetModal}
-            className="bg-[#743D4A] hover:bg-[#5E2F3B] text-white text-xs sm:text-sm font-bold px-6 py-3 rounded-2xl flex items-center gap-2 shadow-md transition-all shrink-0 cursor-pointer"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-[#E9B8BD]" />
-            <span>Setup Google Sheet Catalog</span>
-          </button>
         </div>
       </section>
     </div>

@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import type { Product, CatalogMetadata, ReelFind } from './types/catalog.ts';
-import { fetchCatalog, connectGoogleSheet, resetCatalogToDemo, fetchReels } from './services/catalogService.ts';
+import type { Product, ReelFind } from './types/catalog.ts';
+import { fetchCatalog, fetchReels } from './services/catalogService.ts';
 import { DEMO_PRODUCTS } from './data/demoCatalog.ts';
 import { AffiliateDisclosureBanner } from './components/AffiliateDisclosureBanner.tsx';
 import { Navbar } from './components/Navbar.tsx';
 import { MobileBottomNav } from './components/MobileBottomNav.tsx';
 import { Footer } from './components/Footer.tsx';
 import { ProductDetailModal } from './components/ProductDetailModal.tsx';
-import { GoogleSheetModal } from './components/GoogleSheetModal.tsx';
 
 // Pages
 import { HomePage } from './pages/HomePage.tsx';
@@ -24,18 +23,12 @@ export default function App() {
   
   // Catalog State
   const [products, setProducts] = useState<Product[]>(DEMO_PRODUCTS);
-  const [metadata, setMetadata] = useState<CatalogMetadata>({
-    source: 'demo',
-    lastSyncedAt: new Date().toISOString(),
-    itemCount: DEMO_PRODUCTS.length,
-    status: 'demo'
-  });
+  const [isDemo, setIsDemo] = useState<boolean>(true);
   const [reels] = useState<ReelFind[]>(fetchReels());
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Modals
+  // Product Detail Modal
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
-  const [isSheetModalOpen, setIsSheetModalOpen] = useState(false);
 
   // Initial load
   useEffect(() => {
@@ -44,9 +37,9 @@ export default function App() {
       try {
         const catalogData = await fetchCatalog();
         setProducts(catalogData.products);
-        setMetadata(catalogData.metadata);
+        setIsDemo(catalogData.isDemo);
       } catch (err) {
-        console.warn('Using demo data fallback:', err);
+        console.warn('[Catalog App] Using fallback demo data:', err);
       } finally {
         setIsLoading(false);
       }
@@ -66,7 +59,7 @@ export default function App() {
       setSelectedCategory(categoryParam);
     }
     if (productParam) {
-      const found = DEMO_PRODUCTS.find(p => p.product_id === productParam);
+      const found = DEMO_PRODUCTS.find(p => (p.productId === productParam || p.product_id === productParam));
       if (found) {
         setQuickViewProduct(found);
       }
@@ -107,27 +100,11 @@ export default function App() {
     }
   };
 
-  const handleConnectSheet = async (sheetUrl: string) => {
-    const res = await connectGoogleSheet(sheetUrl);
-    if (res.success && res.metadata) {
-      const refreshed = await fetchCatalog();
-      setProducts(refreshed.products);
-      setMetadata(refreshed.metadata);
-    }
-    return res;
-  };
-
-  const handleResetDemo = async () => {
-    await resetCatalogToDemo();
-    const refreshed = await fetchCatalog();
-    setProducts(refreshed.products);
-    setMetadata(refreshed.metadata);
-  };
-
   // Compute related products for modal
   const relatedProducts = quickViewProduct
     ? products.filter(
-        p => p.category === quickViewProduct.category && p.product_id !== quickViewProduct.product_id
+        p => p.category === quickViewProduct.category && 
+             (p.productId || p.product_id) !== (quickViewProduct.productId || quickViewProduct.product_id)
       )
     : [];
 
@@ -140,11 +117,10 @@ export default function App() {
       <Navbar
         activePage={activePage}
         onNavigate={handleNavigate}
-        metadata={metadata}
-        onOpenSheetModal={() => setIsSheetModalOpen(true)}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onSearchSubmit={handleSearchSubmit}
+        isDemo={isDemo}
       />
 
       {/* Main Page Content */}
@@ -153,11 +129,10 @@ export default function App() {
           <HomePage
             products={products}
             reels={reels}
-            metadata={metadata}
+            isDemo={isDemo}
             onNavigate={handleNavigate}
             onQuickView={(p) => setQuickViewProduct(p)}
             onOpenReel={handleOpenReel}
-            onOpenSheetModal={() => setIsSheetModalOpen(true)}
           />
         )}
 
@@ -166,6 +141,7 @@ export default function App() {
             products={products}
             initialCategory={selectedCategory}
             initialQuery={searchQuery}
+            isLoading={isLoading}
             onQuickView={(p) => setQuickViewProduct(p)}
             onOpenReel={handleOpenReel}
           />
@@ -204,20 +180,8 @@ export default function App() {
         relatedProducts={relatedProducts}
       />
 
-      {/* Google Sheets Connection Modal */}
-      <GoogleSheetModal
-        isOpen={isSheetModalOpen}
-        onClose={() => setIsSheetModalOpen(false)}
-        metadata={metadata}
-        onConnect={handleConnectSheet}
-        onResetDemo={handleResetDemo}
-      />
-
       {/* Footer */}
-      <Footer
-        onNavigate={handleNavigate}
-        onOpenSheetModal={() => setIsSheetModalOpen(true)}
-      />
+      <Footer onNavigate={handleNavigate} />
 
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav

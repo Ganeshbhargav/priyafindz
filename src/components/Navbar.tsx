@@ -1,39 +1,32 @@
 import React, { useState } from 'react';
-import type { CatalogMetadata } from '../types/catalog.ts';
 import { 
   Search, 
   Menu, 
   X, 
-  FileSpreadsheet, 
   Sparkles, 
-  Heart, 
   ShoppingBag, 
   Film, 
   Tag, 
   Info, 
-  Mail, 
-  CheckCircle2, 
-  Database 
+  Mail 
 } from 'lucide-react';
 
 interface NavbarProps {
   activePage: string;
   onNavigate: (page: string, params?: { category?: string; query?: string }) => void;
-  metadata: CatalogMetadata;
-  onOpenSheetModal: () => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onSearchSubmit: () => void;
+  isDemo?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   activePage,
   onNavigate,
-  metadata,
-  onOpenSheetModal,
   searchQuery,
   onSearchChange,
-  onSearchSubmit
+  onSearchSubmit,
+  isDemo = false
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showSearchMobile, setShowSearchMobile] = useState(false);
@@ -68,7 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="inline-block w-2 h-2 rounded-full bg-[#E9B8BD] -mt-2 animate-pulse" />
             </div>
             <span className="text-[10px] sm:text-[11px] font-medium tracking-wide text-[#2D1E1F]/70 hidden xs:inline">
-              Style You Love. Prices You'll Love More.
+              Discover Your Style, Find Your Favorites.
             </span>
           </div>
 
@@ -121,27 +114,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             ))}
           </nav>
 
-          {/* Right Action Icons: Google Sheet Trigger & Mobile Search Toggle */}
+          {/* Right Action Icons: Mobile Search Toggle & Menu */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Google Sheets Status Pill / Trigger */}
-            <button
-              onClick={onOpenSheetModal}
-              className={`text-[11px] font-semibold px-2.5 sm:px-3 py-1.5 rounded-full border transition-all flex items-center gap-1.5 shadow-xs cursor-pointer ${
-                metadata.source === 'google_sheet'
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-                  : 'bg-white text-[#743D4A] border-[#E9B8BD] hover:bg-[#F5EBE6]'
-              }`}
-              title="Configure Google Sheet Catalog"
-              aria-label="Google Sheets Catalog Settings"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-[#743D4A] shrink-0" />
-              <span className="hidden sm:inline">
-                {metadata.source === 'google_sheet' ? 'Google Sheet Active' : 'Demo Catalog'}
+            {isDemo && (
+              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-[#743D4A] bg-[#FFF0F2] border border-[#E9B8BD] px-2.5 py-1 rounded-full">
+                <Sparkles className="w-3 h-3 text-[#743D4A]" />
+                <span>Curated Lookbook</span>
               </span>
-              <span className="sm:hidden">
-                {metadata.source === 'google_sheet' ? 'Live' : 'Demo'}
-              </span>
-            </button>
+            )}
 
             {/* Mobile Search Button */}
             <button
@@ -214,25 +194,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               {activePage === link.id && <Sparkles className="w-4 h-4 text-[#E9B8BD]" />}
             </button>
           ))}
-
-          {/* Quick Google Sheet Connect link in mobile drawer */}
-          <div className="pt-2 border-t border-[#F0E4DC]">
-            <button
-              onClick={() => {
-                onOpenSheetModal();
-                setMobileMenuOpen(false);
-              }}
-              className="w-full py-2.5 px-3 rounded-xl text-xs font-semibold text-[#743D4A] bg-[#FFF0F2] border border-[#E9B8BD] flex items-center justify-between"
-            >
-              <span className="flex items-center gap-2">
-                <FileSpreadsheet className="w-4 h-4" />
-                <span>Configure Google Sheets Source</span>
-              </span>
-              <span className="text-[10px] bg-white px-2 py-0.5 rounded-full font-bold">
-                {metadata.source === 'google_sheet' ? 'Live' : 'Demo'}
-              </span>
-            </button>
-          </div>
         </div>
       )}
     </header>

@@ -8,11 +8,9 @@ import {
   Sparkles, 
   Share2, 
   Check, 
-  Heart, 
   Truck, 
   RefreshCcw, 
-  Instagram,
-  ArrowRight
+  Instagram
 } from 'lucide-react';
 
 interface ProductDetailModalProps {
@@ -46,19 +44,28 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   if (!product) return null;
 
-  const discount = product.discount_percent || Math.round(
-    ((product.original_price_inr - product.price_inr) / product.original_price_inr) * 100
+  const price = product.price ?? product.price_inr ?? 0;
+  const originalPrice = product.originalPrice ?? (product.original_price_inr > price ? product.original_price_inr : undefined);
+  const discount = product.discountPercent ?? product.discount_percent ?? (
+    originalPrice && originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0
   );
+
+  const name = product.productName || product.name || 'Fashion Item';
+  const retailer = product.retailer || product.merchant || 'Retailer';
+  const imageUrl = product.imageUrl || product.image_url;
+  const affiliateUrl = product.affiliateUrl || product.affiliate_url || '#';
+  const reelUrl = product.reelUrl || product.reel_url;
+  const productId = product.productId || product.product_id;
 
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: product.name,
-        text: `Look at this trendy find on PriyaFindz: ${product.name} for only ₹${product.price_inr}!`,
+        title: name,
+        text: `Look at this trendy find on PriyaFindz: ${name} for only ₹${price}!`,
         url: window.location.href
       }).catch(() => {});
     } else {
-      navigator.clipboard.writeText(`${window.location.origin}/?product=${product.product_id}`);
+      navigator.clipboard.writeText(`${window.location.origin}/?product=${productId}`);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -90,11 +97,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           <div className="flex flex-col gap-3">
             <div className="relative aspect-4/5 rounded-2xl overflow-hidden bg-[#F5EBE6] border border-[#F0E4DC] shadow-xs">
               <ImageWithFallback
-                src={product.image_url}
-                alt={product.name}
+                src={imageUrl}
+                alt={name}
                 className="w-full h-full object-cover"
               />
-              {discount > 0 && (
+              {discount > 0 && originalPrice && (
                 <div className="absolute top-3 left-3 bg-[#743D4A] text-[#FFF9F4] text-xs font-bold px-3 py-1 rounded-full shadow-md">
                   {discount}% OFF
                 </div>
@@ -113,7 +120,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </div>
               <div className="bg-white/80 rounded-xl p-2 border border-[#F0E4DC] flex flex-col items-center gap-1">
                 <RefreshCcw className="w-4 h-4 text-[#743D4A]" />
-                <span>Merchant Return</span>
+                <span>Official Return</span>
               </div>
             </div>
           </div>
@@ -121,40 +128,40 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           {/* Right Column: Information & CTAs */}
           <div className="flex flex-col justify-between">
             <div>
-              {/* Category & Merchant header */}
+              {/* Category & Retailer header with close button clearance */}
               <div className="flex items-center justify-between gap-2 mb-2 pr-10">
                 <span className="text-xs uppercase tracking-wider font-semibold text-[#743D4A]">
                   {product.category}
                 </span>
                 <span className="bg-[#E9B8BD]/40 text-[#743D4A] border border-[#E9B8BD] text-xs font-bold px-2.5 py-0.5 rounded-full shrink-0">
-                  Sold on {product.merchant}
+                  Sold on {retailer}
                 </span>
               </div>
 
               {/* Title */}
               <h2 id="modal-product-title" className="text-xl sm:text-2xl font-serif font-bold leading-tight mb-3 text-[#2D1E1F]">
-                {product.name}
+                {name}
               </h2>
 
               {/* Price section */}
               <div className="bg-white rounded-2xl p-4 border border-[#F0E4DC] mb-4">
                 <div className="flex items-baseline gap-3">
                   <span className="text-2xl sm:text-3xl font-bold text-[#743D4A]">
-                    ₹{product.price_inr.toLocaleString('en-IN')}
+                    ₹{price.toLocaleString('en-IN')}
                   </span>
-                  {product.original_price_inr > product.price_inr && (
+                  {originalPrice && originalPrice > price && (
                     <span className="text-sm text-stone-400 line-through">
-                      ₹{product.original_price_inr.toLocaleString('en-IN')}
+                      ₹{originalPrice.toLocaleString('en-IN')}
                     </span>
                   )}
-                  {discount > 0 && (
+                  {discount > 0 && originalPrice && (
                     <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
-                      Save ₹{(product.original_price_inr - product.price_inr).toLocaleString('en-IN')}
+                      Save ₹{(originalPrice - price).toLocaleString('en-IN')}
                     </span>
                   )}
                 </div>
                 <p className="text-[11px] text-stone-500 mt-1">
-                  * Prices are set by {product.merchant} and may fluctuate with merchant flash sales.
+                  * Prices are tracked directly from {retailer} and reflect active merchant promotions.
                 </p>
               </div>
 
@@ -180,9 +187,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </div>
 
               {/* Linked Reel CTA if available */}
-              {product.reel_url && (
+              {reelUrl && (
                 <a
-                  href={product.reel_url}
+                  href={reelUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mb-4 inline-flex items-center gap-2 text-xs font-semibold text-[#743D4A] bg-[#FFF] px-3 py-2 rounded-xl border border-[#E9B8BD] hover:bg-[#E9B8BD]/20 transition-colors"
@@ -196,12 +203,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             {/* CTAs */}
             <div className="pt-2 flex flex-col gap-2.5">
               <a
-                href={product.affiliate_url}
+                href={affiliateUrl}
                 target="_blank"
-                rel="noopener noreferrer sponsored"
+                rel="noopener noreferrer"
                 className="w-full bg-[#743D4A] hover:bg-[#5E2F3B] active:bg-[#48222B] text-[#FFF9F4] text-sm sm:text-base font-bold py-3.5 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all cursor-pointer text-center"
               >
-                <span>Shop Now on {product.merchant}</span>
+                <span>Shop Now on {retailer}</span>
                 <ExternalLink className="w-4 h-4" />
               </a>
 
@@ -218,7 +225,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
               {/* Transparent Disclosure */}
               <p className="text-[10px] text-stone-500 text-center leading-normal">
-                PriyaFindz is an affiliate partner with {product.merchant}. When you buy via our link, we may earn an affiliate commission with no extra cost to you.
+                PriyaFindz earns a small affiliate commission when you complete a purchase through our verified {retailer} links, at no extra cost to you.
               </p>
             </div>
           </div>
@@ -233,23 +240,23 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {relatedProducts.slice(0, 4).map((item) => (
                 <div
-                  key={item.product_id}
+                  key={item.productId || item.product_id}
                   onClick={() => onSelectProduct(item)}
                   className="group bg-white p-2 rounded-xl border border-[#F0E4DC] hover:border-[#E9B8BD] cursor-pointer transition-all"
                 >
                   <div className="aspect-3/4 rounded-lg overflow-hidden bg-[#F5EBE6] mb-1.5">
                     <ImageWithFallback
-                      src={item.image_url}
-                      alt={item.name}
+                      src={item.imageUrl || item.image_url}
+                      alt={item.productName || item.name}
                       className="group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
                   <h4 className="text-xs font-medium text-[#2D1E1F] truncate group-hover:text-[#743D4A]">
-                    {item.name}
+                    {item.productName || item.name}
                   </h4>
                   <div className="flex items-center justify-between text-[11px] mt-0.5">
-                    <span className="font-bold text-[#743D4A]">₹{item.price_inr}</span>
-                    <span className="text-stone-400 text-[10px]">{item.merchant}</span>
+                    <span className="font-bold text-[#743D4A]">₹{item.price ?? item.price_inr}</span>
+                    <span className="text-stone-400 text-[10px]">{item.retailer ?? item.merchant}</span>
                   </div>
                 </div>
               ))}

@@ -5,20 +5,15 @@ import {
   MessageCircle, 
   Heart, 
   Sparkles, 
-  ExternalLink, 
-  FileSpreadsheet, 
-  ShieldCheck 
+  ShieldCheck,
+  CheckCircle2
 } from 'lucide-react';
 
 interface FooterProps {
   onNavigate: (page: string, params?: { category?: string }) => void;
-  onOpenSheetModal: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({
-  onNavigate,
-  onOpenSheetModal
-}) => {
+export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   return (
     <footer className="bg-[#2D1E1F] text-[#FFF9F4] pt-14 pb-20 md:pb-12 border-t border-[#743D4A]/40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -32,7 +27,7 @@ export const Footer: React.FC<FooterProps> = ({
               <Sparkles className="w-4 h-4 text-[#E9B8BD]" />
             </div>
             <p className="text-xs text-[#FFF9F4]/80 leading-relaxed">
-              Curated trendy Indian fashion and budget steals from Meesho, Myntra & top retailers. Style You Love. Prices You'll Love More.
+              Discover Your Style, Find Your Favorites. Curated trendy fashion and verified budget finds from Meesho, Myntra & top retailers for Indian women.
             </p>
             <div className="flex items-center gap-3 pt-2">
               <a
@@ -101,20 +96,20 @@ export const Footer: React.FC<FooterProps> = ({
               </li>
               <li>
                 <button
-                  onClick={() => onNavigate('shop', { category: 'Under ₹499' })}
+                  onClick={() => onNavigate('shop', { category: 'Under ₹399' })}
                   className="hover:text-[#E9B8BD] transition-colors cursor-pointer flex items-center gap-1.5"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-[#E9B8BD]" />
-                  <span>Must-Haves Under ₹499</span>
+                  <span>Trending Under ₹399</span>
                 </button>
               </li>
               <li>
                 <button
-                  onClick={() => onNavigate('shop', { category: 'Under ₹999' })}
+                  onClick={() => onNavigate('shop', { category: 'Under ₹499' })}
                   className="hover:text-[#E9B8BD] transition-colors cursor-pointer flex items-center gap-1.5"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-[#E9B8BD]" />
-                  <span>Festive Glam Under ₹999</span>
+                  <span>Wardrobe Under ₹499</span>
                 </button>
               </li>
               <li className="pt-2">
@@ -128,21 +123,25 @@ export const Footer: React.FC<FooterProps> = ({
             </ul>
           </div>
 
-          {/* Product Source & Partner Merchants */}
+          {/* Our Promise */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#E9B8BD]">
-              Product Source of Truth
+              The PriyaFindz Promise
             </h4>
-            <p className="text-xs text-[#FFF9F4]/75 leading-relaxed">
-              Our inventory is dynamically driven by Google Sheets. Update your spreadsheet and prices, images, and deals refresh automatically.
-            </p>
-            <button
-              onClick={onOpenSheetModal}
-              className="w-full bg-[#FFF9F4]/10 hover:bg-[#FFF9F4]/20 text-[#FFF9F4] text-xs font-semibold py-2 px-3 rounded-xl border border-[#E9B8BD]/30 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-[#E9B8BD]" />
-              <span>Connect Google Sheets Catalog</span>
-            </button>
+            <ul className="space-y-2 text-xs text-[#FFF9F4]/80">
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#E9B8BD] shrink-0 mt-0.5" />
+                <span>Zero price markups — pay exact retailer price</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#E9B8BD] shrink-0 mt-0.5" />
+                <span>Hand-tested fabric and 4+ star seller ratings</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#E9B8BD] shrink-0 mt-0.5" />
+                <span>Official retailer return and refund policies apply</span>
+              </li>
+            </ul>
           </div>
         </div>
 
@@ -163,7 +162,7 @@ export const Footer: React.FC<FooterProps> = ({
           <div className="flex items-center gap-4">
             <button onClick={() => onNavigate('about')} className="hover:text-[#E9B8BD]">About</button>
             <button onClick={() => onNavigate('contact')} className="hover:text-[#E9B8BD]">Contact & Collabs</button>
-            <button onClick={onOpenSheetModal} className="hover:text-[#E9B8BD]">Sheet Source</button>
+            <button onClick={() => onNavigate('shop')} className="hover:text-[#E9B8BD]">All Catalog</button>
           </div>
         </div>
       </div>
