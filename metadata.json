@@ -1,0 +1,6 @@
+{
+  "name": "PriyaFindz - Curated Indian Fashion & Affiliate Catalog",
+  "description": "Affordable, trendy fashion for Indian women. Discover curated ethnic wear, kurtis, co-ord sets, western dresses, and Instagram Reels fashion finds from Meesho, Myntra, and more.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
