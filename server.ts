@@ -13,7 +13,7 @@ app.use(express.json());
 
 /**
  * Public Storefront Catalog Endpoint
- * Dispatches to private Google Sheets service or curated demo data
+ * Dispatches to private Google Sheets service
  */
 app.get('/api/catalog', async (req, res) => {
   try {
@@ -25,7 +25,6 @@ app.get('/api/catalog', async (req, res) => {
     res.status(500).json({
       products: [],
       total: 0,
-      isDemo: true,
       error: 'Failed to load catalog'
     });
   }

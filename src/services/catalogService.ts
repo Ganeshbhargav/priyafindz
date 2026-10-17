@@ -1,5 +1,4 @@
-import type { Product, CatalogResponse, ReelFind } from '../types/catalog.ts';
-import { DEMO_PRODUCTS, DEMO_REELS } from '../data/demoCatalog.ts';
+import type { Product, CatalogResponse } from '../types/catalog.ts';
 
 export async function fetchCatalog(): Promise<CatalogResponse> {
   try {
@@ -9,22 +8,26 @@ export async function fetchCatalog(): Promise<CatalogResponse> {
     }
     const data = await response.json();
     return {
-      products: Array.isArray(data.products) && data.products.length > 0 ? data.products : DEMO_PRODUCTS,
-      total: typeof data.total === 'number' ? data.total : (data.products?.length || DEMO_PRODUCTS.length),
-      isDemo: Boolean(data.isDemo),
+      products: Array.isArray(data.products) ? data.products : [],
+      total: typeof data.total === 'number' ? data.total : (data.products?.length || 0),
       cachedAt: data.cachedAt
     };
   } catch (err) {
-    console.warn('[Catalog Service] Falling back to offline curated demo products:', err);
+    console.warn('[Catalog Service] Unable to reach catalog API:', err);
     return {
-      products: DEMO_PRODUCTS,
-      total: DEMO_PRODUCTS.length,
-      isDemo: true,
+      products: [],
+      total: 0,
       cachedAt: new Date().toISOString()
     };
   }
 }
 
-export function fetchReels(): ReelFind[] {
-  return DEMO_REELS;
+/**
+ * Derives products with attached Instagram Reel links dynamically from Google Sheets rows
+ */
+export function getProductsWithReels(products: Product[]): Product[] {
+  return products.filter(p => {
+    const url = (p.reelUrl || p.reel_url || '').trim();
+    return url.length > 0 && p.isActive;
+  });
 }

@@ -1,4 +1,4 @@
-import type { Product, Category } from '../types/catalog.ts';
+import type { Product } from '../types/catalog.ts';
 
 export const OFFICIAL_COLUMNS = [
   'productId',
@@ -268,7 +268,7 @@ export function parseProductsCsv(csvText: string): {
 export function filterAndSortProducts(
   products: Product[],
   options: {
-    category?: Category | string;
+    category?: string;
     searchQuery?: string;
     retailer?: string;
     merchant?: string;

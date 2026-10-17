@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { Product, Category } from '../types/catalog.ts';
-import { CATEGORIES, RETAILERS } from '../types/catalog.ts';
+import type { Product } from '../types/catalog.ts';
 import { filterAndSortProducts } from '../utils/catalogLogic.ts';
 import { ProductCard } from '../components/ProductCard.tsx';
 import { 
@@ -8,8 +7,8 @@ import {
   X, 
   ArrowUpDown, 
   Sparkles, 
-  RefreshCw,
-  ShoppingBag
+  ShoppingBag,
+  Filter
 } from 'lucide-react';
 
 interface ShopPageProps {
@@ -29,7 +28,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
   onQuickView,
   onOpenReel
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<Category | string>(
+  const [selectedCategory, setSelectedCategory] = useState<string>(
     initialCategory || 'All'
   );
   const [searchQuery, setSearchQuery] = useState(initialQuery);
@@ -49,6 +48,29 @@ export const ShopPage: React.FC<ShopPageProps> = ({
       setSearchQuery(initialQuery);
     }
   }, [initialQuery]);
+
+  // Dynamically derive categories from active products
+  const dynamicCategories = useMemo(() => {
+    const set = new Set<string>();
+    products.forEach(p => {
+      if (p.isActive && p.category?.trim()) {
+        set.add(p.category.trim());
+      }
+    });
+    return ['All', ...Array.from(set)];
+  }, [products]);
+
+  // Dynamically derive retailers from active products
+  const dynamicRetailers = useMemo(() => {
+    const set = new Set<string>();
+    products.forEach(p => {
+      const r = (p.retailer || p.merchant || '').trim();
+      if (p.isActive && r) {
+        set.add(r);
+      }
+    });
+    return ['All', ...Array.from(set)];
+  }, [products]);
 
   // Filter & sort products
   const filteredProducts = useMemo(() => {
@@ -110,44 +132,48 @@ export const ShopPage: React.FC<ShopPageProps> = ({
         </div>
       </div>
 
-      {/* Category Pills Slider */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-        {CATEGORIES.map((cat) => {
-          const isSelected = selectedCategory === cat;
-          return (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`text-xs font-semibold px-3.5 py-2 rounded-xl shrink-0 transition-all cursor-pointer ${
-                isSelected
-                  ? 'bg-[#743D4A] text-white shadow-xs'
-                  : 'bg-white text-[#2D1E1F] border border-[#F0E4DC] hover:border-[#E9B8BD]'
-              }`}
-            >
-              {cat}
-            </button>
-          );
-        })}
-      </div>
+      {/* Dynamic Category Pills Slider */}
+      {dynamicCategories.length > 1 && (
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+          {dynamicCategories.map((cat) => {
+            const isSelected = selectedCategory === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`text-xs font-semibold px-3.5 py-2 rounded-xl shrink-0 transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-[#743D4A] text-white shadow-xs'
+                    : 'bg-white text-[#2D1E1F] border border-[#F0E4DC] hover:border-[#E9B8BD]'
+                }`}
+              >
+                {cat}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Filter and Sort Toolbar */}
       <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-[#F0E4DC] shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Retailer Dropdown */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-stone-500 font-medium">Retailer:</span>
-            <select
-              value={selectedRetailer}
-              onChange={(e) => setSelectedRetailer(e.target.value)}
-              className="bg-[#FFF9F4] border border-[#E9B8BD] rounded-lg px-2.5 py-1.5 text-xs text-[#2D1E1F] font-semibold outline-none cursor-pointer"
-            >
-              {RETAILERS.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </div>
+          {/* Retailer Dropdown derived dynamically */}
+          {dynamicRetailers.length > 1 && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-stone-500 font-medium">Retailer:</span>
+              <select
+                value={selectedRetailer}
+                onChange={(e) => setSelectedRetailer(e.target.value)}
+                className="bg-[#FFF9F4] border border-[#E9B8BD] rounded-lg px-2.5 py-1.5 text-xs text-[#2D1E1F] font-semibold outline-none cursor-pointer"
+              >
+                {dynamicRetailers.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
-          {/* Quick Price Buttons: Under 299, Under 399, Under 499 */}
+          {/* Quick Price Buttons */}
           <div className="hidden sm:flex items-center gap-1.5 ml-2">
             <span className="text-stone-500 font-medium">Budget:</span>
             {[
@@ -199,54 +225,63 @@ export const ShopPage: React.FC<ShopPageProps> = ({
         <div className="flex items-center gap-2 flex-wrap text-xs pt-1">
           <span className="text-stone-500">Active filters:</span>
           {selectedCategory !== 'All' && (
-            <span className="bg-[#FFF0F2] text-[#743D4A] border border-[#E9B8BD] px-2.5 py-1 rounded-full flex items-center gap-1 font-semibold">
+            <span className="bg-[#E9B8BD]/30 border border-[#E9B8BD] text-[#743D4A] px-2.5 py-1 rounded-lg flex items-center gap-1">
               Category: {selectedCategory}
-              <button onClick={() => setSelectedCategory('All')}><X className="w-3 h-3" /></button>
+              <button onClick={() => setSelectedCategory('All')} className="hover:text-black">
+                <X className="w-3 h-3" />
+              </button>
             </span>
           )}
           {selectedRetailer !== 'All' && (
-            <span className="bg-[#FFF0F2] text-[#743D4A] border border-[#E9B8BD] px-2.5 py-1 rounded-full flex items-center gap-1 font-semibold">
+            <span className="bg-[#E9B8BD]/30 border border-[#E9B8BD] text-[#743D4A] px-2.5 py-1 rounded-lg flex items-center gap-1">
               Retailer: {selectedRetailer}
-              <button onClick={() => setSelectedRetailer('All')}><X className="w-3 h-3" /></button>
+              <button onClick={() => setSelectedRetailer('All')} className="hover:text-black">
+                <X className="w-3 h-3" />
+              </button>
             </span>
           )}
           {maxPrice > 0 && (
-            <span className="bg-[#FFF0F2] text-[#743D4A] border border-[#E9B8BD] px-2.5 py-1 rounded-full flex items-center gap-1 font-semibold">
-              Under ₹{maxPrice}
-              <button onClick={() => setMaxPrice(0)}><X className="w-3 h-3" /></button>
+            <span className="bg-[#E9B8BD]/30 border border-[#E9B8BD] text-[#743D4A] px-2.5 py-1 rounded-lg flex items-center gap-1">
+              Max: ₹{maxPrice}
+              <button onClick={() => setMaxPrice(0)} className="hover:text-black">
+                <X className="w-3 h-3" />
+              </button>
             </span>
           )}
           {searchQuery && (
-            <span className="bg-[#FFF0F2] text-[#743D4A] border border-[#E9B8BD] px-2.5 py-1 rounded-full flex items-center gap-1 font-semibold">
-              Query: "{searchQuery}"
-              <button onClick={() => setSearchQuery('')}><X className="w-3 h-3" /></button>
+            <span className="bg-[#E9B8BD]/30 border border-[#E9B8BD] text-[#743D4A] px-2.5 py-1 rounded-lg flex items-center gap-1">
+              "{searchQuery}"
+              <button onClick={() => setSearchQuery('')} className="hover:text-black">
+                <X className="w-3 h-3" />
+              </button>
             </span>
           )}
           <button
             onClick={clearAllFilters}
-            className="text-[#743D4A] underline font-semibold hover:text-[#5E2F3B] ml-2 cursor-pointer"
+            className="text-[#743D4A] hover:underline font-semibold ml-1 cursor-pointer"
           >
-            Clear All
+            Clear all
           </button>
         </div>
       )}
 
       {/* Loading Skeletons */}
-      {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 animate-pulse">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl p-3 border border-[#F0E4DC] space-y-3">
+      {isLoading && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 pt-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
+            <div key={n} className="bg-white rounded-2xl p-4 border border-[#F0E4DC] animate-pulse space-y-3">
               <div className="aspect-3/4 bg-[#F5EBE6] rounded-xl" />
-              <div className="h-3 bg-[#F5EBE6] rounded w-1/3" />
-              <div className="h-4 bg-[#F5EBE6] rounded w-5/6" />
-              <div className="h-4 bg-[#F5EBE6] rounded w-1/2" />
-              <div className="h-8 bg-[#F5EBE6] rounded-xl" />
+              <div className="h-4 bg-stone-200 rounded-md w-3/4" />
+              <div className="h-4 bg-stone-200 rounded-md w-1/2" />
+              <div className="h-8 bg-stone-200 rounded-xl w-full" />
             </div>
           ))}
         </div>
-      ) : filteredProducts.length > 0 ? (
-        /* Products Grid */
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+      )}
+
+      {/* Product Grid */}
+      {!isLoading && filteredProducts.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 pt-2">
           {filteredProducts.map((product) => (
             <ProductCard
               key={product.productId || product.product_id}
@@ -256,24 +291,30 @@ export const ShopPage: React.FC<ShopPageProps> = ({
             />
           ))}
         </div>
-      ) : (
-        /* Empty State */
-        <div className="bg-white rounded-3xl p-10 text-center border border-[#F0E4DC] max-w-md mx-auto my-12 space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#FFF0F2] border border-[#E9B8BD] text-[#743D4A] mx-auto flex items-center justify-center">
-            <Search className="w-7 h-7" />
+      )}
+
+      {/* Empty State */}
+      {!isLoading && filteredProducts.length === 0 && (
+        <div className="bg-white rounded-3xl p-10 sm:p-14 border border-[#F0E4DC] text-center max-w-md mx-auto space-y-4 my-8">
+          <div className="w-14 h-14 rounded-full bg-[#FFF0F2] text-[#743D4A] flex items-center justify-center mx-auto">
+            <ShoppingBag className="w-6 h-6" />
           </div>
           <h3 className="font-serif text-xl font-bold text-[#743D4A]">
-            No Matching Finds Found
+            No Products Found
           </h3>
-          <p className="text-xs text-stone-600 leading-relaxed">
-            We couldn't find any items matching your active filters or query {searchQuery ? `"${searchQuery}"` : ''}. Try broadening your search or choosing a different category.
+          <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
+            {activeFiltersCount > 0
+              ? 'No items matched your current filter criteria. Try resetting your search or price filters.'
+              : 'Our product catalog is managed directly via Google Sheets. Items added to the spreadsheet will appear here instantly.'}
           </p>
-          <button
-            onClick={clearAllFilters}
-            className="bg-[#743D4A] hover:bg-[#5E2F3B] text-white text-xs font-bold py-2.5 px-5 rounded-xl transition-colors cursor-pointer shadow-xs"
-          >
-            Reset All Filters
-          </button>
+          {activeFiltersCount > 0 && (
+            <button
+              onClick={clearAllFilters}
+              className="bg-[#743D4A] hover:bg-[#5E2F3B] text-white text-xs font-bold py-2.5 px-5 rounded-xl shadow-xs transition-colors cursor-pointer"
+            >
+              Reset All Filters
+            </button>
+          )}
         </div>
       )}
     </div>

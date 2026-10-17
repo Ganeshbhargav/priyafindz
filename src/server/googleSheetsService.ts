@@ -1,7 +1,6 @@
 import crypto from 'crypto';
 import type { Product, CatalogResponse } from '../types/catalog.ts';
-import { DEMO_PRODUCTS } from '../data/demoCatalog.ts';
-import { parseGoogleSheetsValues } from '../utils/catalogLogic.ts';
+import { parseGoogleSheetsValues, parseProductsCsv } from '../utils/catalogLogic.ts';
 
 // In-memory server-side cache
 interface CacheEntry {
@@ -10,7 +9,7 @@ interface CacheEntry {
 }
 
 let memoryCache: CacheEntry | null = null;
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache
+const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes cache for fresh sync
 
 /**
  * Creates an RS256 signed JWT for Google Service Account authentication
@@ -37,7 +36,6 @@ function createServiceAccountJwt(clientEmail: string, privateKey: string): strin
   const encodedClaimSet = base64Url(claimSet);
   const signingInput = `${encodedHeader}.${encodedClaimSet}`;
 
-  // Handle various formats of private key from environment variables
   let normalizedKey = privateKey.trim();
   if (normalizedKey.includes('\\n')) {
     normalizedKey = normalizedKey.replace(/\\n/g, '\n');
@@ -85,7 +83,6 @@ async function getGoogleAccessToken(email: string, privateKey: string): Promise<
  * - GOOGLE_SERVICE_ACCOUNT_KEY (full JSON string)
  */
 function resolveServiceAccountCredentials(): { email?: string; privateKey?: string } {
-  // Option 1: Full JSON string
   const jsonKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
   if (jsonKey) {
     try {
@@ -99,7 +96,6 @@ function resolveServiceAccountCredentials(): { email?: string; privateKey?: stri
     }
   }
 
-  // Option 2: Individual email and private key env vars
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_CLIENT_EMAIL;
   const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || process.env.GOOGLE_PRIVATE_KEY;
 
@@ -111,36 +107,46 @@ function resolveServiceAccountCredentials(): { email?: string; privateKey?: stri
 }
 
 /**
- * Retrieves catalog products from private Google Sheets or fallback demo data
+ * Extracts spreadsheet ID from various formats (raw ID, full URL)
+ */
+function normalizeSpreadsheetId(input?: string): string {
+  if (!input) return '';
+  const trimmed = input.trim();
+  const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (match) return match[1];
+  return trimmed;
+}
+
+/**
+ * Retrieves catalog products exclusively from Google Sheets
+ * NEVER returns mock or demo fallback data.
  */
 export async function getCatalogProducts(): Promise<CatalogResponse> {
-  // Check memory cache
   const now = Date.now();
   if (memoryCache && (now - memoryCache.timestamp < CACHE_TTL_MS)) {
     return memoryCache.data;
   }
 
-  const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
+  const rawSpreadsheetId = process.env.GOOGLE_SPREADSHEET_ID || process.env.GOOGLE_SHEET_ID;
+  const spreadsheetId = normalizeSpreadsheetId(rawSpreadsheetId);
+  const directCsvUrl = process.env.GOOGLE_SHEET_CSV_URL || process.env.GOOGLE_SHEETS_CSV_URL;
   const apiKey = process.env.GOOGLE_SHEETS_API_KEY;
   const { email, privateKey } = resolveServiceAccountCredentials();
 
-  // If no private spreadsheet ID configured, serve curated demo catalog
-  if (!spreadsheetId) {
-    const demoResponse: CatalogResponse = {
-      products: DEMO_PRODUCTS,
-      total: DEMO_PRODUCTS.length,
-      isDemo: true,
+  // If no spreadsheet configured yet, return empty list
+  if (!spreadsheetId && !directCsvUrl) {
+    return {
+      products: [],
+      total: 0,
       cachedAt: new Date().toISOString()
     };
-    memoryCache = { data: demoResponse, timestamp: now };
-    return demoResponse;
   }
 
   try {
-    let sheetValues: any[][] = [];
+    let parsedProducts: Product[] = [];
 
-    // Mode A: Service Account (Recommended for private sheets)
-    if (email && privateKey) {
+    // Mode 1: Service Account (Recommended for private Google Sheets)
+    if (spreadsheetId && email && privateKey) {
       const accessToken = await getGoogleAccessToken(email, privateKey);
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/A1:Z?valueRenderOption=UNFORMATTED_VALUE`;
 
@@ -152,63 +158,58 @@ export async function getCatalogProducts(): Promise<CatalogResponse> {
       });
 
       if (!response.ok) {
-        console.error(`[Google Sheets API Error] Status: ${response.status}`);
-        throw new Error('Google Sheets API request failed');
+        throw new Error(`Google Sheets API responded with status ${response.status}`);
       }
 
       const json = await response.json();
-      sheetValues = json.values || [];
+      parsedProducts = parseGoogleSheetsValues(json.values || []);
     } 
-    // Mode B: Google Sheets API Key
-    else if (apiKey) {
+    // Mode 2: Google Sheets API Key
+    else if (spreadsheetId && apiKey) {
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/A1:Z?key=${encodeURIComponent(apiKey)}&valueRenderOption=UNFORMATTED_VALUE`;
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error(`Google Sheets API Key fetch failed: ${response.status}`);
+        throw new Error(`Google Sheets API Key fetch failed with status ${response.status}`);
       }
       const json = await response.json();
-      sheetValues = json.values || [];
-    } else {
-      console.warn('[Catalog Backend] Spreadsheet ID is set, but no service account credentials or API key provided. Serving demo catalog.');
-      const demoResponse: CatalogResponse = {
-        products: DEMO_PRODUCTS,
-        total: DEMO_PRODUCTS.length,
-        isDemo: true,
-        cachedAt: new Date().toISOString()
-      };
-      return demoResponse;
+      parsedProducts = parseGoogleSheetsValues(json.values || []);
+    }
+    // Mode 3: Direct CSV Export URL or Public/Viewable Sheet Export
+    else {
+      const csvFetchUrl = directCsvUrl || `https://docs.google.com/spreadsheets/d/${encodeURIComponent(spreadsheetId)}/gviz/tq?tqx=out:csv`;
+      const response = await fetch(csvFetchUrl);
+      if (!response.ok) {
+        // Try fallback export url
+        const fallbackUrl = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(spreadsheetId)}/export?format=csv`;
+        const res2 = await fetch(fallbackUrl);
+        if (!res2.ok) {
+          throw new Error(`Failed to fetch Google Sheet CSV: ${response.status}`);
+        }
+        const text = await res2.text();
+        parsedProducts = parseProductsCsv(text).products;
+      } else {
+        const text = await response.text();
+        parsedProducts = parseProductsCsv(text).products;
+      }
     }
 
-    // Parse rows into sanitized products
-    const parsedProducts = parseGoogleSheetsValues(sheetValues);
-
-    if (parsedProducts.length === 0) {
-      console.warn('[Catalog Backend] Google Sheet was fetched, but contained 0 active products. Falling back to demo catalog.');
-      return {
-        products: DEMO_PRODUCTS,
-        total: DEMO_PRODUCTS.length,
-        isDemo: true,
-        cachedAt: new Date().toISOString()
-      };
-    }
+    // Only active products are served to visitors
+    const activeProducts = parsedProducts.filter(p => p.isActive);
 
     const liveResponse: CatalogResponse = {
-      products: parsedProducts,
-      total: parsedProducts.length,
-      isDemo: false,
+      products: activeProducts,
+      total: activeProducts.length,
       cachedAt: new Date().toISOString()
     };
 
-    // Cache successful response
     memoryCache = { data: liveResponse, timestamp: now };
     return liveResponse;
   } catch (err: any) {
-    console.error('[Catalog Backend Error] Failed to fetch Google Sheets catalog:', err.message);
-    // Return friendly fallback without leaking credentials or stack traces
+    console.error('[Catalog Backend Error] Failed to fetch Google Sheet:', err.message);
+    // Never fallback to demo products! Return clean empty catalog with zero mock data.
     return {
-      products: DEMO_PRODUCTS,
-      total: DEMO_PRODUCTS.length,
-      isDemo: true,
+      products: [],
+      total: 0,
       cachedAt: new Date().toISOString()
     };
   }

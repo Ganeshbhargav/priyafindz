@@ -1,137 +1,146 @@
-import React, { useState } from 'react';
-import type { ReelFind, Product } from '../types/catalog.ts';
+import React from 'react';
+import type { Product } from '../types/catalog.ts';
 import { ImageWithFallback } from './ImageWithFallback.tsx';
-import { Play, Instagram, ShoppingBag, ExternalLink, ChevronDown, ChevronUp, Eye, Heart } from 'lucide-react';
+import { Play, Instagram, ExternalLink, Eye, Sparkles } from 'lucide-react';
 
 interface ReelCardProps {
-  reel: ReelFind;
-  taggedProducts: Product[];
+  product: Product;
   onSelectProduct: (p: Product) => void;
+  onOpenReel?: (reelUrl: string) => void;
 }
 
 export const ReelCard: React.FC<ReelCardProps> = ({
-  reel,
-  taggedProducts,
-  onSelectProduct
+  product,
+  onSelectProduct,
+  onOpenReel
 }) => {
-  const [showProducts, setShowProducts] = useState(false);
+  const price = product.price ?? product.price_inr ?? 0;
+  const originalPrice = product.originalPrice ?? (product.original_price_inr > price ? product.original_price_inr : undefined);
+  const discount = product.discountPercent ?? product.discount_percent ?? (
+    originalPrice && originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0
+  );
+
+  const name = product.productName || product.name || 'Featured Look';
+  const retailer = product.retailer || product.merchant || 'Merchant';
+  const imageUrl = product.imageUrl || product.image_url;
+  const affiliateUrl = product.affiliateUrl || product.affiliate_url || '#';
+  const reelUrl = product.reelUrl || product.reel_url || '';
+  const productId = product.productId || product.product_id;
+
+  const handleWatchReel = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onOpenReel && reelUrl) {
+      onOpenReel(reelUrl);
+    } else if (reelUrl) {
+      window.open(reelUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleShopNow = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (affiliateUrl && affiliateUrl !== '#') {
+      window.open(affiliateUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   return (
     <div 
-      className="bg-white rounded-3xl overflow-hidden border border-[#F0E4DC] hover:border-[#E9B8BD] shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col"
-      data-testid={`reel-card-${reel.id}`}
+      className="group bg-white rounded-3xl overflow-hidden border border-[#F0E4DC] hover:border-[#E9B8BD] shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+      data-testid={`reel-card-${productId}`}
     >
-      {/* Reel Thumbnail Header with Instagram Look */}
-      <div className="relative aspect-9/14 bg-stone-900 group overflow-hidden">
+      {/* Reel Thumbnail Header with Instagram Aesthetic */}
+      <div 
+        onClick={() => onSelectProduct(product)}
+        className="relative aspect-9/14 bg-stone-900 overflow-hidden cursor-pointer"
+      >
         <ImageWithFallback
-          src={reel.thumbnail_url}
-          alt={reel.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-90 group-hover:opacity-100"
+          src={imageUrl}
+          alt={name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-95 group-hover:opacity-100"
         />
 
         {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/30 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/30 pointer-events-none" />
 
-        {/* Top Bar: Creator Info */}
+        {/* Top Badges */}
         <div className="absolute top-3 left-3 right-3 flex items-center justify-between text-white z-10">
-          <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/20">
+          <div className="flex items-center gap-1.5 bg-black/45 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/20 text-xs font-semibold">
             <Instagram className="w-3.5 h-3.5 text-[#E9B8BD]" />
-            <span className="text-xs font-semibold">{reel.creator}</span>
+            <span>Shop The Reel</span>
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] font-medium bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/10 text-white/90">
-            <span className="flex items-center gap-1"><Eye className="w-3 h-3 text-[#E9B8BD]" /> {reel.views}</span>
-            <span className="flex items-center gap-1"><Heart className="w-3 h-3 text-rose-400 fill-rose-400" /> {reel.likes}</span>
-          </div>
+          {discount > 0 && (
+            <span className="bg-[#743D4A] text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+              {discount}% OFF
+            </span>
+          )}
         </div>
 
-        {/* Center Play Button Overlay */}
-        <a
-          href={reel.reel_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="absolute inset-0 m-auto w-14 h-14 rounded-full bg-white/25 hover:bg-white/40 backdrop-blur-md border border-white/40 flex items-center justify-center text-white transition-all hover:scale-110 active:scale-95 shadow-xl z-10"
-          aria-label={`Play Reel: ${reel.title}`}
-        >
-          <Play className="w-6 h-6 fill-white ml-0.5" />
-        </a>
+        {/* Center Play Button to Open Reel */}
+        {reelUrl && (
+          <button
+            type="button"
+            onClick={handleWatchReel}
+            className="absolute inset-0 m-auto w-13 h-13 rounded-full bg-white/30 hover:bg-white/45 backdrop-blur-md border border-white/50 flex items-center justify-center text-white transition-all hover:scale-110 active:scale-95 shadow-xl z-10 cursor-pointer"
+            aria-label={`Play Reel for ${name}`}
+          >
+            <Play className="w-5 h-5 fill-white ml-0.5" />
+          </button>
+        )}
 
-        {/* Bottom Content within Media */}
-        <div className="absolute bottom-3 left-3 right-3 text-white z-10">
-          <p className="text-sm font-medium line-clamp-2 drop-shadow-md mb-2 leading-snug">
-            {reel.title}
+        {/* Bottom Media Card Content */}
+        <div className="absolute bottom-3 left-3 right-3 text-white z-10 space-y-1.5">
+          <span className="text-[10px] font-semibold text-[#E9B8BD] uppercase tracking-wider block">
+            {retailer} • {product.category}
+          </span>
+          <p className="text-xs sm:text-sm font-semibold line-clamp-2 drop-shadow-md leading-snug">
+            {name}
           </p>
 
-          <div className="flex items-center justify-between gap-2">
-            <a
-              href={reel.reel_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#E9B8BD] hover:text-white transition-colors"
-            >
-              <span>Watch on Instagram</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-
-            <button
-              onClick={() => setShowProducts(!showProducts)}
-              className="bg-[#743D4A] hover:bg-[#5E2F3B] text-[#FFF9F4] text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
-            >
-              <ShoppingBag className="w-3.5 h-3.5 text-[#E9B8BD]" />
-              <span>Shop Look ({taggedProducts.length})</span>
-              {showProducts ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            </button>
+          <div className="flex items-baseline gap-2 pt-0.5">
+            <span className="text-sm font-bold text-white">
+              ₹{price.toLocaleString('en-IN')}
+            </span>
+            {originalPrice && originalPrice > price && (
+              <span className="text-xs text-white/60 line-through">
+                ₹{originalPrice.toLocaleString('en-IN')}
+              </span>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Expandable Tagged Products List */}
-      {showProducts && (
-        <div className="p-4 bg-[#FFFDFB] border-t border-[#F0E4DC] animate-in fade-in slide-in-from-top-2 duration-200">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-[#743D4A] mb-2.5 flex items-center justify-between">
-            <span>Items Styled in this Reel</span>
-            <span className="text-[11px] text-stone-500 font-normal">Tap item to view</span>
-          </h4>
+      {/* Action Footer */}
+      <div className="p-3 bg-[#FFFDFB] border-t border-[#F0E4DC] flex items-center gap-2">
+        {reelUrl ? (
+          <button
+            type="button"
+            onClick={handleWatchReel}
+            className="flex-1 bg-white hover:bg-[#FFF5F6] border border-[#E9B8BD] text-[#743D4A] text-xs font-semibold py-2 px-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+          >
+            <Instagram className="w-3.5 h-3.5 text-pink-600" />
+            <span>Watch Reel</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onSelectProduct(product)}
+            className="flex-1 bg-white hover:bg-[#FFF5F6] border border-[#E9B8BD] text-[#743D4A] text-xs font-semibold py-2 px-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+          >
+            <Eye className="w-3.5 h-3.5 text-[#743D4A]" />
+            <span>Details</span>
+          </button>
+        )}
 
-          <div className="flex flex-col gap-2.5">
-            {taggedProducts.map((p) => (
-              <div
-                key={p.product_id}
-                onClick={() => onSelectProduct(p)}
-                className="flex items-center gap-3 p-2 rounded-xl bg-white border border-[#F0E4DC] hover:border-[#E9B8BD] cursor-pointer transition-all hover:bg-[#FFF9F4]"
-              >
-                <div className="w-12 h-16 rounded-lg overflow-hidden shrink-0 bg-[#F5EBE6]">
-                  <ImageWithFallback src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="text-[10px] font-semibold text-[#743D4A] uppercase block">
-                    {p.merchant}
-                  </span>
-                  <p className="text-xs font-medium text-[#2D1E1F] truncate">
-                    {p.name}
-                  </p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs font-bold text-[#743D4A]">₹{p.price_inr}</span>
-                    {p.original_price_inr > p.price_inr && (
-                      <span className="text-[10px] text-stone-400 line-through">₹{p.original_price_inr}</span>
-                    )}
-                  </div>
-                </div>
-                <a
-                  href={p.affiliate_url}
-                  target="_blank"
-                  rel="noopener noreferrer sponsored"
-                  onClick={(e) => e.stopPropagation()}
-                  className="bg-[#743D4A] hover:bg-[#5E2F3B] text-white text-[11px] font-semibold py-1.5 px-2.5 rounded-lg shrink-0 flex items-center gap-1 shadow-xs"
-                >
-                  <span>Shop</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        <button
+          type="button"
+          onClick={handleShopNow}
+          className="flex-1 bg-[#743D4A] hover:bg-[#5E2F3B] text-[#FFF9F4] text-xs font-semibold py-2 px-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer text-center"
+        >
+          <span>Shop Look</span>
+          <ExternalLink className="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   );
 };

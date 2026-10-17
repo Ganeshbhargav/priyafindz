@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import type { Product, ReelFind } from './types/catalog.ts';
-import { fetchCatalog, fetchReels } from './services/catalogService.ts';
-import { DEMO_PRODUCTS } from './data/demoCatalog.ts';
+import type { Product } from './types/catalog.ts';
+import { fetchCatalog } from './services/catalogService.ts';
 import { AffiliateDisclosureBanner } from './components/AffiliateDisclosureBanner.tsx';
 import { Navbar } from './components/Navbar.tsx';
 import { MobileBottomNav } from './components/MobileBottomNav.tsx';
@@ -21,10 +20,8 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   
-  // Catalog State
-  const [products, setProducts] = useState<Product[]>(DEMO_PRODUCTS);
-  const [isDemo, setIsDemo] = useState<boolean>(true);
-  const [reels] = useState<ReelFind[]>(fetchReels());
+  // Real Catalog State — strictly driven by Google Sheets
+  const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Product Detail Modal
@@ -36,20 +33,29 @@ export default function App() {
       setIsLoading(true);
       try {
         const catalogData = await fetchCatalog();
-        setProducts(catalogData.products);
-        setIsDemo(catalogData.isDemo);
+        const activeOnly = (catalogData.products || []).filter(p => p.isActive);
+        setProducts(activeOnly);
+
+        // Check query params for deep linking (e.g. ?product=id)
+        const urlParams = new URLSearchParams(window.location.search);
+        const productParam = urlParams.get('product');
+        if (productParam) {
+          const found = activeOnly.find(p => (p.productId === productParam || p.product_id === productParam));
+          if (found) {
+            setQuickViewProduct(found);
+          }
+        }
       } catch (err) {
-        console.warn('[Catalog App] Using fallback demo data:', err);
+        console.warn('[Catalog App] Failed to load catalog from Google Sheets:', err);
       } finally {
         setIsLoading(false);
       }
     }
     loadData();
 
-    // Check query params for deep linking (e.g. ?product=PF-101 or ?page=shop)
+    // Check query params for page/category
     const urlParams = new URLSearchParams(window.location.search);
     const pageParam = urlParams.get('page');
-    const productParam = urlParams.get('product');
     const categoryParam = urlParams.get('category');
 
     if (pageParam && ['home', 'shop', 'reels', 'budget', 'about', 'contact'].includes(pageParam)) {
@@ -57,12 +63,6 @@ export default function App() {
     }
     if (categoryParam) {
       setSelectedCategory(categoryParam);
-    }
-    if (productParam) {
-      const found = DEMO_PRODUCTS.find(p => (p.productId === productParam || p.product_id === productParam));
-      if (found) {
-        setQuickViewProduct(found);
-      }
     }
   }, []);
 
@@ -100,7 +100,7 @@ export default function App() {
     }
   };
 
-  // Compute related products for modal
+  // Compute related products for modal from active catalog
   const relatedProducts = quickViewProduct
     ? products.filter(
         p => p.category === quickViewProduct.category && 
@@ -120,7 +120,6 @@ export default function App() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onSearchSubmit={handleSearchSubmit}
-        isDemo={isDemo}
       />
 
       {/* Main Page Content */}
@@ -128,8 +127,7 @@ export default function App() {
         {activePage === 'home' && (
           <HomePage
             products={products}
-            reels={reels}
-            isDemo={isDemo}
+            isLoading={isLoading}
             onNavigate={handleNavigate}
             onQuickView={(p) => setQuickViewProduct(p)}
             onOpenReel={handleOpenReel}
@@ -149,9 +147,9 @@ export default function App() {
 
         {activePage === 'reels' && (
           <ReelsPage
-            reels={reels}
             products={products}
             onSelectProduct={(p) => setQuickViewProduct(p)}
+            onOpenReel={handleOpenReel}
           />
         )}
 

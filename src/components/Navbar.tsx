@@ -17,7 +17,6 @@ interface NavbarProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onSearchSubmit: () => void;
-  isDemo?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -25,8 +24,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigate,
   searchQuery,
   onSearchChange,
-  onSearchSubmit,
-  isDemo = false
+  onSearchSubmit
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showSearchMobile, setShowSearchMobile] = useState(false);
@@ -116,13 +114,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Icons: Mobile Search Toggle & Menu */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {isDemo && (
-              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-[#743D4A] bg-[#FFF0F2] border border-[#E9B8BD] px-2.5 py-1 rounded-full">
-                <Sparkles className="w-3 h-3 text-[#743D4A]" />
-                <span>Curated Lookbook</span>
-              </span>
-            )}
-
             {/* Mobile Search Button */}
             <button
               onClick={() => setShowSearchMobile(!showSearchMobile)}
@@ -138,14 +129,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="lg:hidden p-2 rounded-xl text-[#743D4A] hover:bg-[#F5EBE6] transition-colors"
               aria-label="Open navigation menu"
             >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Search Dropdown Bar */}
+        {/* Mobile Search Dropdown */}
         {showSearchMobile && (
-          <div className="md:hidden pb-3 pt-1 animate-in slide-in-from-top-1 duration-150">
+          <div className="md:hidden pb-3 pt-1">
             <form 
               onSubmit={(e) => {
                 e.preventDefault();
@@ -156,20 +147,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <input
                 type="text"
-                autoFocus
-                placeholder="Search kurtis, dresses, under ₹499..."
+                placeholder="Search kurtis, dresses, bags..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="w-full bg-white border border-[#E9B8BD] rounded-xl pl-10 pr-4 py-2.5 text-xs text-[#2D1E1F] outline-none shadow-xs"
+                autoFocus
+                className="w-full bg-white border border-[#E9B8BD] focus:border-[#743D4A] rounded-xl pl-9 pr-8 py-2 text-xs text-[#2D1E1F] outline-none shadow-xs"
               />
-              <Search className="w-4 h-4 text-[#743D4A] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-4 h-4 text-[#743D4A] absolute left-3 top-1/2 -translate-y-1/2" />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => onSearchChange('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </form>
@@ -179,21 +170,23 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-[#F0E4DC] bg-[#FFF9F4] px-4 py-4 space-y-2 shadow-lg animate-in slide-in-from-top duration-200">
-          {navLinks.map((link) => (
-            <button
-              key={link.id}
-              onClick={() => handleNav(link.id)}
-              className={`w-full text-left py-2.5 px-3 rounded-xl text-sm font-semibold transition-colors flex items-center justify-between ${
-                activePage === link.id
-                  ? 'bg-[#743D4A] text-[#FFF9F4]'
-                  : 'text-[#2D1E1F] hover:bg-[#F5EBE6]'
-              }`}
-            >
-              <span>{link.label}</span>
-              {activePage === link.id && <Sparkles className="w-4 h-4 text-[#E9B8BD]" />}
-            </button>
-          ))}
+        <div className="lg:hidden border-t border-[#F0E4DC] bg-[#FFF9F4] animate-in slide-in-from-top-2 duration-200">
+          <div className="max-w-7xl mx-auto px-4 py-4 space-y-1">
+            {navLinks.map((link) => (
+              <button
+                key={link.id}
+                onClick={() => handleNav(link.id)}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
+                  activePage === link.id
+                    ? 'bg-[#E9B8BD]/30 text-[#743D4A] font-bold'
+                    : 'text-[#2D1E1F] hover:bg-[#F5EBE6]'
+                }`}
+              >
+                <span>{link.label}</span>
+                {activePage === link.id && <span className="w-1.5 h-1.5 rounded-full bg-[#743D4A]" />}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </header>

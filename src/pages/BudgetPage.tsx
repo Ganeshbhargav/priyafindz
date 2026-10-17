@@ -72,16 +72,28 @@ export const BudgetPage: React.FC<BudgetPageProps> = ({
       </div>
 
       {/* Products Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-        {tierProducts.map((product) => (
-          <ProductCard
-            key={product.productId || product.product_id}
-            product={product}
-            onQuickView={onQuickView}
-            onOpenReel={onOpenReel}
-          />
-        ))}
-      </div>
+      {tierProducts.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+          {tierProducts.map((product) => (
+            <ProductCard
+              key={product.productId || product.product_id}
+              product={product}
+              onQuickView={onQuickView}
+              onOpenReel={onOpenReel}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white rounded-3xl p-10 sm:p-14 border border-[#F0E4DC] text-center max-w-md mx-auto space-y-3">
+          <Tag className="w-8 h-8 text-[#743D4A] mx-auto" />
+          <h3 className="font-serif text-lg font-bold text-[#743D4A]">
+            No Items Currently Under ₹{selectedTier}
+          </h3>
+          <p className="text-xs text-stone-600">
+            Products priced at or below ₹{selectedTier} in your Google Sheet will be featured in this price edit.
+          </p>
+        </div>
+      )}
     </div>
   );
 };
