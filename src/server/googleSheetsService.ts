@@ -1,6 +1,10 @@
 import crypto from 'crypto';
 import type { Product, CatalogResponse } from '../types/catalog.ts';
-import { parseGoogleSheetsValues, parseProductsCsv } from '../utils/catalogLogic.ts';
+import { parseGoogleSheetsValues, parseProductsCsv, extractDriveFileId } from '../utils/catalogLogic.ts';
+import { 
+  resolveServiceAccountCredentials, 
+  enrichProductsWithDriveVersions 
+} from './googleDriveService.ts';
 
 // In-memory server-side cache
 interface CacheEntry {
@@ -12,7 +16,7 @@ let memoryCache: CacheEntry | null = null;
 const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes cache for fresh sync
 
 /**
- * Creates an RS256 signed JWT for Google Service Account authentication
+ * Creates an RS256 signed JWT for Google Service Account authentication (Sheets scope)
  */
 function createServiceAccountJwt(clientEmail: string, privateKey: string): string {
   const header = { alg: 'RS256', typ: 'JWT' };
@@ -54,7 +58,7 @@ function createServiceAccountJwt(clientEmail: string, privateKey: string): strin
 }
 
 /**
- * Exchanges JWT for Google OAuth2 Bearer Access Token
+ * Exchanges JWT for Google OAuth2 Bearer Access Token for Sheets
  */
 async function getGoogleAccessToken(email: string, privateKey: string): Promise<string> {
   const assertion = createServiceAccountJwt(email, privateKey);
@@ -78,35 +82,6 @@ async function getGoogleAccessToken(email: string, privateKey: string): Promise<
 }
 
 /**
- * Parses service account credentials from supported environment variable formats:
- * - GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
- * - GOOGLE_SERVICE_ACCOUNT_KEY (full JSON string)
- */
-function resolveServiceAccountCredentials(): { email?: string; privateKey?: string } {
-  const jsonKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-  if (jsonKey) {
-    try {
-      const parsed = JSON.parse(jsonKey);
-      return {
-        email: parsed.client_email,
-        privateKey: parsed.private_key
-      };
-    } catch {
-      console.warn('[Credentials] Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY JSON string');
-    }
-  }
-
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_CLIENT_EMAIL;
-  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || process.env.GOOGLE_PRIVATE_KEY;
-
-  if (email && privateKey) {
-    return { email, privateKey };
-  }
-
-  return {};
-}
-
-/**
  * Extracts spreadsheet ID from various formats (raw ID, full URL)
  */
 function normalizeSpreadsheetId(input?: string): string {
@@ -115,6 +90,22 @@ function normalizeSpreadsheetId(input?: string): string {
   const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
   if (match) return match[1];
   return trimmed;
+}
+
+/**
+ * Retrieves the set of currently allowed product imageFileIds
+ */
+export async function getAllowedImageFileIds(): Promise<Set<string>> {
+  const catalog = await getCatalogProducts();
+  const set = new Set<string>();
+  for (const product of catalog.products) {
+    if (product.imageFileId) {
+      set.add(product.imageFileId);
+      const clean = extractDriveFileId(product.imageFileId);
+      if (clean) set.add(clean);
+    }
+  }
+  return set;
 }
 
 /**
@@ -142,13 +133,16 @@ export async function getCatalogProducts(): Promise<CatalogResponse> {
     };
   }
 
+  const tabName = process.env.GOOGLE_SHEETS_TAB_NAME || process.env.GOOGLE_SHEET_TAB_NAME;
+  const customRange = process.env.GOOGLE_SHEETS_RANGE || (tabName ? `'${tabName}'!A1:Z` : 'A1:Z');
+
   try {
     let parsedProducts: Product[] = [];
 
     // Mode 1: Service Account (Recommended for private Google Sheets)
     if (spreadsheetId && email && privateKey) {
       const accessToken = await getGoogleAccessToken(email, privateKey);
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/A1:Z?valueRenderOption=UNFORMATTED_VALUE`;
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(customRange)}?valueRenderOption=UNFORMATTED_VALUE`;
 
       const response = await fetch(url, {
         headers: {
@@ -196,9 +190,12 @@ export async function getCatalogProducts(): Promise<CatalogResponse> {
     // Only active products are served to visitors
     const activeProducts = parsedProducts.filter(p => p.isActive);
 
+    // Enrich products with Drive versions for cache busting (?v=...)
+    const enrichedProducts = await enrichProductsWithDriveVersions(activeProducts);
+
     const liveResponse: CatalogResponse = {
-      products: activeProducts,
-      total: activeProducts.length,
+      products: enrichedProducts,
+      total: enrichedProducts.length,
       cachedAt: new Date().toISOString()
     };
 

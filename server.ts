@@ -3,6 +3,7 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import dotenv from 'dotenv';
 import { getCatalogProducts } from './src/server/googleSheetsService.ts';
+import { handleImageDelivery } from './src/server/imageHandler.ts';
 
 dotenv.config();
 
@@ -28,6 +29,14 @@ app.get('/api/catalog', async (req, res) => {
       error: 'Failed to load catalog'
     });
   }
+});
+
+/**
+ * Authenticated Google Drive Product Image Proxy Endpoint
+ * Streams image bytes securely with caching and format validation
+ */
+app.get('/api/image', async (req, res) => {
+  await handleImageDelivery(req, res);
 });
 
 async function startServer() {

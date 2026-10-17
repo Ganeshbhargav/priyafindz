@@ -99,6 +99,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <ImageWithFallback
                 src={imageUrl}
                 alt={name}
+                categoryName={product.category}
                 className="w-full h-full object-cover"
               />
               {discount > 0 && originalPrice && (
@@ -248,7 +249,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     <ImageWithFallback
                       src={item.imageUrl || item.image_url}
                       alt={item.productName || item.name}
-                      className="group-hover:scale-105 transition-transform duration-300"
+                      categoryName={item.category}
+                      className="w-full h-full group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
                   <h4 className="text-xs font-medium text-[#2D1E1F] truncate group-hover:text-[#743D4A]">

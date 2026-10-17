@@ -66,7 +66,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <ImageWithFallback
             src={imageUrl}
             alt={name}
-            className="group-hover:scale-105 transition-transform duration-500 ease-out"
+            categoryName={product.category}
+            className="w-full h-full group-hover:scale-105 transition-transform duration-500 ease-out"
           />
 
           {/* Badges Overlay */}

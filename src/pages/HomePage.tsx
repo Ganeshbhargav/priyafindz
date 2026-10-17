@@ -224,7 +224,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 className="flex flex-col items-center gap-2 group shrink-0 cursor-pointer"
               >
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-[#E9B8BD]/60 group-hover:border-[#743D4A] group-hover:scale-105 transition-all shadow-xs bg-[#F5EBE6]">
-                  <ImageWithFallback src={cat.img} alt={cat.name} className="w-full h-full object-cover" />
+                  <ImageWithFallback src={cat.img} alt={cat.name} categoryName={cat.name} className="w-full h-full object-cover" />
                 </div>
                 <span className="text-[11px] sm:text-xs font-semibold text-[#2D1E1F] group-hover:text-[#743D4A] transition-colors whitespace-nowrap">
                   {cat.name}

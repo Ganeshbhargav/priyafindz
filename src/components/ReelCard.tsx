@@ -56,6 +56,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({
         <ImageWithFallback
           src={imageUrl}
           alt={name}
+          categoryName={product.category}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-95 group-hover:opacity-100"
         />
 

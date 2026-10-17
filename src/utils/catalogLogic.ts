@@ -7,7 +7,7 @@ export const OFFICIAL_COLUMNS = [
   'retailer',
   'price',
   'originalPrice',
-  'imageUrl',
+  'imageFileId',
   'affiliateUrl',
   'description',
   'reelUrl',
@@ -35,10 +35,50 @@ export const COLUMN_ALIASES: Record<string, string> = {
   original_price: 'originalPrice',
   original_price_inr: 'originalPrice',
   mrp: 'originalPrice',
-  imageurl: 'imageUrl',
-  image_url: 'imageUrl',
-  image: 'imageUrl',
-  photo: 'imageUrl',
+  
+  // Google Drive File ID column headers and aliases
+  imagefileid: 'imageFileId',
+  image_file_id: 'imageFileId',
+  imagefile: 'imageFileId',
+  image_file: 'imageFileId',
+  imageid: 'imageFileId',
+  image_id: 'imageFileId',
+  drivefileid: 'imageFileId',
+  drive_file_id: 'imageFileId',
+  drivefile: 'imageFileId',
+  drive_file: 'imageFileId',
+  driveid: 'imageFileId',
+  drive_id: 'imageFileId',
+  fileid: 'imageFileId',
+  file_id: 'imageFileId',
+  googledrivefileid: 'imageFileId',
+  google_drive_file_id: 'imageFileId',
+  googledriveid: 'imageFileId',
+  google_drive_id: 'imageFileId',
+  googledrivefile: 'imageFileId',
+  driveimageid: 'imageFileId',
+  driveimage: 'imageFileId',
+  imagedriveid: 'imageFileId',
+  productimagefileid: 'imageFileId',
+  productimageid: 'imageFileId',
+  productimage: 'imageFileId',
+  photoid: 'imageFileId',
+  drivelink: 'imageFileId',
+  imagelink: 'imageFileId',
+  imagegoogledriveid: 'imageFileId',
+  imageiddrive: 'imageFileId',
+  googledriveimageid: 'imageFileId',
+
+  // Backward compatibility aliases mapping to imageFileId
+  imageurl: 'imageFileId',
+  image_url: 'imageFileId',
+  image: 'imageFileId',
+  photo: 'imageFileId',
+  picture: 'imageFileId',
+  pic: 'imageFileId',
+  img: 'imageFileId',
+  imgurl: 'imageFileId',
+
   affiliateurl: 'affiliateUrl',
   affiliate_url: 'affiliateUrl',
   url: 'affiliateUrl',
@@ -59,6 +99,89 @@ export const COLUMN_ALIASES: Record<string, string> = {
   created_at: 'createdAt',
   date: 'createdAt'
 };
+
+/**
+ * Extracts a Google Drive file ID from a raw string, URL, or identifier.
+ * Explicitly rejects Google Drive folder URLs and configured folder IDs (folders are not images).
+ */
+export function extractDriveFileId(val: unknown): string {
+  if (!val || typeof val !== 'string') return '';
+  const trimmed = val.trim();
+  if (!trimmed) return '';
+
+  // Explicitly reject Google Drive folder URLs
+  if (/\/drive\/folders\/[a-zA-Z0-9_-]+/i.test(trimmed) || /\/folders\/[a-zA-Z0-9_-]+/i.test(trimmed)) {
+    return '';
+  }
+
+  // Reject if it matches the configured folder ID
+  const envFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID?.trim();
+  if (envFolderId && (trimmed === envFolderId || trimmed.includes(envFolderId))) {
+    return '';
+  }
+
+  // Match /file/d/<fileId>/view or similar URL
+  const fileDMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/i);
+  if (fileDMatch) return fileDMatch[1];
+
+  // Match id=<fileId> query param
+  const idQueryMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/i);
+  if (idQueryMatch) return idQueryMatch[1];
+
+  // Match open?id=<fileId>
+  const openMatch = trimmed.match(/open\?id=([a-zA-Z0-9_-]+)/i);
+  if (openMatch) return openMatch[1];
+
+  // Check if it's a pure Google Drive File ID (10 to 100 alphanumeric with dashes/underscores)
+  if (/^[a-zA-Z0-9_-]{10,100}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  // If it's another format or URL, return empty if invalid or return trimmed if no spaces
+  return trimmed.includes(' ') ? '' : trimmed;
+}
+
+/**
+ * Extracts a Google Drive folder ID from a raw ID, folder URL, or query parameter.
+ * Handles URLs like https://drive.google.com/drive/folders/<FOLDER_ID>?usp=drive_link
+ */
+export function extractFolderId(val: unknown): string {
+  if (!val || typeof val !== 'string') return '';
+  const trimmed = val.trim();
+  if (!trimmed) return '';
+
+  const folderMatch = trimmed.match(/\/folders\/([a-zA-Z0-9_-]+)/i);
+  if (folderMatch) return folderMatch[1];
+
+  const idParamMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/i);
+  if (idParamMatch) return idParamMatch[1];
+
+  const clean = trimmed.split('?')[0].split('#')[0].trim();
+  if (/^[a-zA-Z0-9_-]{10,100}$/.test(clean)) {
+    return clean;
+  }
+  return clean;
+}
+
+/**
+ * Formats a product's image URL to point to the server-side /api/image endpoint
+ * with optional cache-busting version parameter based on Drive file mtime/md5.
+ */
+export function formatProductImageUrl(imageFileId?: string, version?: string): string {
+  if (!imageFileId || typeof imageFileId !== 'string' || !imageFileId.trim()) {
+    return '';
+  }
+  const cleanId = extractDriveFileId(imageFileId);
+  if (!cleanId) return '';
+  
+  // If cleanId is already a full external image URL (non-drive), return as-is
+  if (/^https?:\/\//i.test(cleanId) && !cleanId.includes('drive.google.com')) {
+    return cleanId;
+  }
+
+  const vParam = version ? `&v=${encodeURIComponent(version)}` : '';
+  return `/api/image?id=${encodeURIComponent(cleanId)}${vParam}`;
+}
 
 /**
  * Validates and sanitizes affiliate URL (ensures valid HTTPS or HTTP)
@@ -106,7 +229,7 @@ export function parseBoolean(val: unknown, defaultValue = false): boolean {
 }
 
 /**
- * Normalizes raw product fields into standard Product type with both camelCase and snake_case aliases.
+ * Normalizes raw product fields into standard Product type with imageFileId and dynamic /api/image delivery.
  */
 export function normalizeProduct(raw: Record<string, any>, index = 1): Product {
   const productId = String(raw.productId || raw.product_id || raw.id || `pf-${index}`).trim();
@@ -118,10 +241,21 @@ export function normalizeProduct(raw: Record<string, any>, index = 1): Product {
   const originalPrice = originalPriceRaw > price ? originalPriceRaw : undefined;
   const discountPercent = originalPrice ? calculateDiscount(price, originalPrice) : 0;
   
-  const rawImage = String(raw.imageUrl || raw.image_url || raw.image || '').trim();
-  const imageUrl = rawImage && /^https?:\/\//i.test(rawImage) 
-    ? rawImage 
-    : 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80';
+  // Extract Google Drive File ID
+  const rawImageVal = String(
+    raw.imageFileId || raw.image_file_id || raw.imageUrl || raw.image_url || raw.image || raw.photo || ''
+  ).trim();
+
+  const driveId = extractDriveFileId(rawImageVal);
+  const imageFileId = driveId || undefined;
+
+  // Format delivery URL (empty string indicates no image -> neutral branded placeholder will render)
+  let imageUrl = '';
+  if (imageFileId) {
+    imageUrl = formatProductImageUrl(imageFileId, raw.imageVersion || raw.version);
+  } else if (rawImageVal && /^https?:\/\//i.test(rawImageVal) && !rawImageVal.includes('drive.google.com')) {
+    imageUrl = rawImageVal;
+  }
 
   const affiliateUrl = sanitizeAffiliateUrl(raw.affiliateUrl ?? raw.affiliate_url);
   const description = String(raw.description || raw.desc || 'Curated trendy fashion piece with verified quality and exceptional pricing.').trim();
@@ -137,6 +271,7 @@ export function normalizeProduct(raw: Record<string, any>, index = 1): Product {
     retailer,
     price,
     originalPrice,
+    imageFileId,
     imageUrl,
     affiliateUrl,
     description,
@@ -152,6 +287,7 @@ export function normalizeProduct(raw: Record<string, any>, index = 1): Product {
     merchant: retailer,
     price_inr: price,
     original_price_inr: originalPrice ?? price,
+    image_file_id: imageFileId,
     image_url: imageUrl,
     affiliate_url: affiliateUrl,
     reel_url: reelUrl,
@@ -168,7 +304,7 @@ export function parseGoogleSheetsValues(values: any[][]): Product[] {
   if (!values || values.length < 2) return [];
 
   const headerRow = values[0].map((h: any) => 
-    String(h || '').trim().toLowerCase().replace(/[\s-_]+/g, '')
+    String(h || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '')
   );
 
   const columnMap: Record<string, number> = {};

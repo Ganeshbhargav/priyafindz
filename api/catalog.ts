@@ -15,7 +15,8 @@ export default async function handler(req: any, res: any) {
     return res.status(200).json(catalog);
   } catch (error) {
     console.error('[API Catalog Handler Error]', error);
-    return res.status(200).json({
+    return res.status(503).json({
+      error: 'Product catalog is temporarily unavailable. Please try again shortly.',
       products: [],
       total: 0
     });

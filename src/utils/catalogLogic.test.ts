@@ -6,6 +6,8 @@ import {
   parseBoolean,
   parseCsvLine,
   sanitizeAffiliateUrl,
+  extractDriveFileId,
+  formatProductImageUrl,
   normalizeProduct,
   parseGoogleSheetsValues,
   filterAndSortProducts,
@@ -56,21 +58,93 @@ test('parseCsvLine parses quoted values containing commas', () => {
   assert.equal(parsed[3], '499');
 });
 
-test('parseGoogleSheetsValues parses Google Sheets API 2D values array', () => {
+test('extractDriveFileId extracts Google Drive file IDs correctly from IDs and URLs', () => {
+  // Direct file ID
+  assert.equal(extractDriveFileId('1aB2cD3eF4gH5iJ6kL7mN8oP9qR'), '1aB2cD3eF4gH5iJ6kL7mN8oP9qR');
+
+  // Google Drive /file/d/ URL
+  assert.equal(
+    extractDriveFileId('https://drive.google.com/file/d/1_xYZ987abc123DEF456/view?usp=sharing'),
+    '1_xYZ987abc123DEF456'
+  );
+
+  // Google Drive ?id= query URL
+  assert.equal(
+    extractDriveFileId('https://drive.google.com/open?id=1AbCdEfGhIjKlMnOpQrStUv'),
+    '1AbCdEfGhIjKlMnOpQrStUv'
+  );
+
+  // Google Drive folder URLs must be rejected (folders cannot be streamed as product images)
+  assert.equal(
+    extractDriveFileId('https://drive.google.com/drive/folders/1aBcDeFgHiJkLmNoPqRsTuVw'),
+    ''
+  );
+  assert.equal(
+    extractDriveFileId('https://drive.google.com/drive/u/0/folders/1aBcDeFgHiJkLmNoPqRsTuVw?usp=sharing'),
+    ''
+  );
+
+  // Blank or empty
+  assert.equal(extractDriveFileId(''), '');
+  assert.equal(extractDriveFileId(null), '');
+  assert.equal(extractDriveFileId('   '), '');
+});
+
+test('formatProductImageUrl builds /api/image URL with optional version token', () => {
+  // With Drive file ID
+  assert.equal(
+    formatProductImageUrl('1aB2cD3eF4gH5iJ6kL7mN8oP9qR'),
+    '/api/image?id=1aB2cD3eF4gH5iJ6kL7mN8oP9qR'
+  );
+
+  // With version token
+  assert.equal(
+    formatProductImageUrl('1aB2cD3eF4gH5iJ6kL7mN8oP9qR', 'abc12345'),
+    '/api/image?id=1aB2cD3eF4gH5iJ6kL7mN8oP9qR&v=abc12345'
+  );
+
+  // Blank file ID returns empty string (for neutral branded placeholder display)
+  assert.equal(formatProductImageUrl(''), '');
+  assert.equal(formatProductImageUrl(undefined), '');
+});
+
+test('normalizeProduct accurately maps imageFileId and formats image endpoint', () => {
+  // Product with valid imageFileId
+  const prodWithImage = normalizeProduct({
+    productId: 'PF-101',
+    productName: 'Chikankari Kurti',
+    price: 499,
+    imageFileId: '1AbCdEfGhIjKlMnOpQrStUv'
+  });
+  assert.equal(prodWithImage.imageFileId, '1AbCdEfGhIjKlMnOpQrStUv');
+  assert.equal(prodWithImage.imageUrl, '/api/image?id=1AbCdEfGhIjKlMnOpQrStUv');
+
+  // Product with blank imageFileId -> returns empty imageUrl (neutral branded placeholder)
+  const prodBlankImage = normalizeProduct({
+    productId: 'PF-102',
+    productName: 'Silk Dupatta',
+    price: 299,
+    imageFileId: ''
+  });
+  assert.equal(prodBlankImage.imageFileId, undefined);
+  assert.equal(prodBlankImage.imageUrl, '');
+});
+
+test('parseGoogleSheetsValues parses Google Sheets API 2D values array with imageFileId', () => {
   const values = [
     [
       'productId', 'productName', 'category', 'retailer', 'price',
-      'originalPrice', 'imageUrl', 'affiliateUrl', 'description', 'reelUrl',
+      'originalPrice', 'imageFileId', 'affiliateUrl', 'description', 'reelUrl',
       'featured', 'isActive', 'createdAt'
     ],
     [
       'PF-201', 'Chanderi Kurta', 'Kurtis', 'Meesho', '399',
-      '999', 'https://images.unsplash.com/sample.jpg', 'https://meesho.com/s/p/201',
+      '999', '1AbCdEfGhIjKlMnOpQrStUv', 'https://meesho.com/s/p/201',
       'Elegant summer kurti', '', 'true', 'true', '2026-03-01'
     ],
     [
       'PF-202', 'Discontinued Item', 'Dresses', 'Myntra', '799',
-      '1999', 'https://images.unsplash.com/sample2.jpg', 'https://myntra.com/s/p/202',
+      '1999', '', 'https://myntra.com/s/p/202',
       'Old stock', '', 'false', 'false', '2026-03-02'
     ]
   ];
@@ -84,6 +158,8 @@ test('parseGoogleSheetsValues parses Google Sheets API 2D values array', () => {
   assert.equal(products[0].discountPercent, 60);
   assert.equal(products[0].retailer, 'Meesho');
   assert.equal(products[0].isActive, true);
+  assert.equal(products[0].imageFileId, '1AbCdEfGhIjKlMnOpQrStUv');
+  assert.equal(products[0].imageUrl, '/api/image?id=1AbCdEfGhIjKlMnOpQrStUv');
 });
 
 test('filterAndSortProducts handles search, category, and budget tiers (Under 299, 399, 499)', () => {
@@ -97,7 +173,7 @@ test('filterAndSortProducts handles search, category, and budget tiers (Under 29
       category: 'Ethnic Wear',
       retailer: 'Meesho',
       affiliateUrl: 'https://meesho.com/1',
-      imageUrl: 'https://img.com/1',
+      imageFileId: 'drive-id-1',
       featured: true,
       isActive: true,
       createdAt: '2026-03-01'
@@ -111,7 +187,7 @@ test('filterAndSortProducts handles search, category, and budget tiers (Under 29
       category: 'Kurtis',
       retailer: 'Myntra',
       affiliateUrl: 'https://myntra.com/2',
-      imageUrl: 'https://img.com/2',
+      imageFileId: 'drive-id-2',
       featured: false,
       isActive: true,
       createdAt: '2026-03-02'
@@ -125,7 +201,7 @@ test('filterAndSortProducts handles search, category, and budget tiers (Under 29
       category: 'Accessories',
       retailer: 'Meesho',
       affiliateUrl: 'https://meesho.com/3',
-      imageUrl: 'https://img.com/3',
+      imageFileId: 'drive-id-3',
       featured: false,
       isActive: true,
       createdAt: '2026-03-03'

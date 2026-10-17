@@ -5,7 +5,8 @@ export interface Product {
   retailer: string;
   price: number;
   originalPrice?: number;
-  imageUrl: string;
+  imageFileId?: string; // Google Drive File ID
+  imageUrl: string; // Dynamically generated /api/image endpoint or blank
   affiliateUrl: string;
   description: string;
   reelUrl?: string;
@@ -20,6 +21,7 @@ export interface Product {
   merchant: string;
   price_inr: number;
   original_price_inr: number;
+  image_file_id?: string;
   image_url: string;
   affiliate_url: string;
   reel_url?: string;
